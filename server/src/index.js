@@ -1,6 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { env } from './config/env.js';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
@@ -32,6 +35,18 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/goals', goalsRoutes);
 app.use('/api/summer-challenge', summerChallengeRoutes);
 app.use('/api/tasks', internshipTasksRoutes);
+
+// Serve the built React app (client/dist) from this same server in production,
+// so the whole app lives on one origin — no separate frontend host, no CORS/
+// cross-site-cookie complications, and only one free-tier service to run.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const clientDistPath = path.resolve(__dirname, '../../client/dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get(/^(?!\/api).*/, (req, res) => {
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
 
 app.use((err, req, res, next) => {
   console.error(err);
