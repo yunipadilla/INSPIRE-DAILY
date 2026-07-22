@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #fafafa;
+  color: #1a1a2e;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tab pastel gradients — shared source of truth so every card/button/nav-icon
+   for a given tab uses exactly the same two-stop gradient. */
+.gradient-daily-scores { background-image: linear-gradient(135deg, #bae6fd, #60a5fa); }
+.gradient-goals { background-image: linear-gradient(135deg, #e9d5ff, #f9a8d4); }
+.gradient-internship-tasks { background-image: linear-gradient(135deg, #bbf7d0, #6ee7b7); }
+.gradient-summer-challenge { background-image: linear-gradient(135deg, #fef9c3, #fed7aa); }
+.gradient-rainbow { background-image: linear-gradient(135deg, #6ee7b7, #38bdf8, #818cf8, #e879f9, #fb7185); }
+
+.text-gradient-inspire {
+  background-image: linear-gradient(90deg, #6ee7b7, #38bdf8, #818cf8, #e879f9, #fb7185);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.card {
+  background: #fff;
+  border-radius: 1rem;
+  border: 0.5px solid #e5e5e5;
+  box-shadow: 0 1px 2px rgba(26, 26, 46, 0.03), 0 4px 12px rgba(26, 26, 46, 0.045);
+}
+
+/* Tactile press feedback for anything tappable — cards, buttons, tiles. */
+.pressable {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.pressable:active {
+  transform: scale(0.97);
+}
+
+/* Small colored icon badge used in section headers, e.g. 🔥 in a soft circle. */
+.icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.75rem;
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+
+.input {
+  width: 100%;
+  border: 1px solid #e5e5e5;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  color: #1a1a2e;
+  background: #fff;
+}
+.input:focus {
+  outline: none;
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.15);
+}
+
+/* Slim, unobtrusive scrollbar for the horizontal Daily Scores sliders. */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
