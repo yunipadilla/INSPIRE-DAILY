@@ -2,11 +2,11 @@
 // Self-heals goals whose logged progress already meets their completion
 // condition but weren't marked completed (e.g. a request failed mid-flight).
 // Never touches any table outside goals/goal_books/goal_logs.
-import cron from 'node-cron';
 import { query } from '../db.js';
 import { isGoalComplete } from '../lib/goalCompletion.js';
 import { ptDateString } from '../config/pacificTime.js';
 import { PACIFIC_TIME_ZONE } from '../config/pacificTime.js';
+import { scheduleSafeCron } from '../lib/safeCron.js';
 
 export async function runGoalsAgent() {
   const { rows: goals } = await query('select * from goals where completed = false');
@@ -41,5 +41,5 @@ export async function runGoalsAgent() {
 }
 
 export function scheduleGoalsAgent() {
-  cron.schedule('*/10 * * * *', () => runGoalsAgent(), { timezone: PACIFIC_TIME_ZONE });
+  scheduleSafeCron('*/10 * * * *', 'goalsAgent', runGoalsAgent, { timezone: PACIFIC_TIME_ZONE });
 }

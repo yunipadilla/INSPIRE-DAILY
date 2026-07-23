@@ -13,6 +13,7 @@ import {
   confirmParentalConsentByToken,
 } from '../repositories/users.js';
 import { requireAuth } from '../middleware/auth.js';
+import { loginLimiter, signupLimiter } from '../middleware/rateLimit.js';
 
 const router = Router();
 const PARENTAL_CONSENT_TOKEN_TTL_HOURS = 72;
@@ -28,7 +29,7 @@ const COOKIE_OPTIONS = {
   maxAge: 30 * 24 * 60 * 60 * 1000,
 };
 
-router.post('/signup', async (req, res) => {
+router.post('/signup', signupLimiter, async (req, res) => {
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid signup data.' });
@@ -102,7 +103,7 @@ router.post('/signup', async (req, res) => {
   });
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: 'Email and password are required.' });

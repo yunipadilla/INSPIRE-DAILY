@@ -2,10 +2,10 @@
 // Recomputes total_points for recent entries and corrects any drift from the
 // canonical point formula (defense-in-depth even though points are always
 // computed server-side at submission time). Never touches any other table.
-import cron from 'node-cron';
 import { query } from '../db.js';
 import { calculateSummerPoints } from '../lib/summerChallenge.js';
 import { addDays, ptDateString, PACIFIC_TIME_ZONE } from '../config/pacificTime.js';
+import { scheduleSafeCron } from '../lib/safeCron.js';
 
 export async function runSummerChallengeAgent() {
   const since = addDays(ptDateString(), -7);
@@ -37,5 +37,5 @@ export async function runSummerChallengeAgent() {
 }
 
 export function scheduleSummerChallengeAgent() {
-  cron.schedule('*/15 * * * *', () => runSummerChallengeAgent(), { timezone: PACIFIC_TIME_ZONE });
+  scheduleSafeCron('*/15 * * * *', 'summerChallengeAgent', runSummerChallengeAgent, { timezone: PACIFIC_TIME_ZONE });
 }

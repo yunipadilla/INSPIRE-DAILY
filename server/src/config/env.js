@@ -9,7 +9,7 @@ export const env = {
   port: Number(process.env.PORT || 4000),
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   databaseUrl: required('DATABASE_URL'),
-  jwtSecret: required('JWT_SECRET', 'dev-only-insecure-secret-change-me'),
+  jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '30d',
   smtp: {
     host: process.env.SMTP_HOST || '',
@@ -26,6 +26,20 @@ export const env = {
   },
   syncEndpointUrl: process.env.SYNC_ENDPOINT_URL || '',
 };
+
+// No insecure default here on purpose: every JWT this server ever issues or
+// verifies is only as trustworthy as this secret. Silently falling back to a
+// hardcoded string would mean any deployment that forgot to set JWT_SECRET
+// (or had it wiped by a config error) would keep running — just signing every
+// user's session with a secret anyone can read in this file. Fail loudly at
+// startup instead.
+if (!env.jwtSecret) {
+  throw new Error(
+    'JWT_SECRET environment variable is required and was not set. Refusing to start with an ' +
+      'insecure default — set JWT_SECRET in server/.env locally (see .env.example), or in your ' +
+      "deployment platform's environment variables, before starting the server."
+  );
+}
 
 export const isEmailConfigured = () => Boolean(env.smtp.host && env.smtp.user && env.smtp.pass);
 export const isTwilioConfigured = () =>

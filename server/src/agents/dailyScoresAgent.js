@@ -6,12 +6,12 @@
 // daily_scores history. Never touches any other section's tables, never
 // surfaces anything to the user — failures are logged and skipped per-user
 // so one bad row can't halt the run.
-import cron from 'node-cron';
 import { query } from '../db.js';
 import { reconcileUserStreak } from '../lib/streakEngine.js';
 import { updateStreakFields } from '../repositories/users.js';
 import { listDatesForUser } from '../repositories/dailyScores.js';
 import { PACIFIC_TIME_ZONE } from '../config/pacificTime.js';
+import { scheduleSafeCron } from '../lib/safeCron.js';
 
 export async function runDailyScoresAgent(now = new Date()) {
   const { rows: users } = await query(
@@ -58,5 +58,5 @@ export async function runDailyScoresAgent(now = new Date()) {
 }
 
 export function scheduleDailyScoresAgent() {
-  cron.schedule('0 12 * * *', () => runDailyScoresAgent(), { timezone: PACIFIC_TIME_ZONE });
+  scheduleSafeCron('0 12 * * *', 'dailyScoresAgent', runDailyScoresAgent, { timezone: PACIFIC_TIME_ZONE });
 }

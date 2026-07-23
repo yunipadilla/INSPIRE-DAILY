@@ -21,6 +21,14 @@ import { scheduleInternshipTasksAgent } from './agents/internshipTasksAgent.js';
 
 const app = express();
 
+// Render (and most PaaS hosts) sit in front of this server as a single
+// reverse-proxy hop. Without this, Express sees every request as coming from
+// Render's proxy IP — meaning express-rate-limit below would key on that one
+// IP for *all* users combined instead of each real client, either blocking
+// everyone together after a handful of requests or (depending on the
+// library's fallback) not limiting anyone meaningfully at all.
+app.set('trust proxy', 1);
+
 app.use(cors({ origin: env.clientOrigin, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());

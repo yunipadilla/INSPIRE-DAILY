@@ -2,9 +2,9 @@
 // Flags in-progress signups whose task posting has since been deactivated,
 // so staff data stays legible even though nothing here needs a hard fix.
 // Never touches any table outside internship_tasks/task_signups.
-import cron from 'node-cron';
 import { query } from '../db.js';
 import { PACIFIC_TIME_ZONE } from '../config/pacificTime.js';
+import { scheduleSafeCron } from '../lib/safeCron.js';
 
 export async function runInternshipTasksAgent() {
   const { rows } = await query(
@@ -19,5 +19,5 @@ export async function runInternshipTasksAgent() {
 }
 
 export function scheduleInternshipTasksAgent() {
-  cron.schedule('*/15 * * * *', () => runInternshipTasksAgent(), { timezone: PACIFIC_TIME_ZONE });
+  scheduleSafeCron('*/15 * * * *', 'internshipTasksAgent', runInternshipTasksAgent, { timezone: PACIFIC_TIME_ZONE });
 }
