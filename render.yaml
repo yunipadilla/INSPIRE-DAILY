@@ -3,7 +3,7 @@ services:
     name: inspire-daily
     runtime: node
     plan: free
-    buildCommand: cd client && npm install && npm run build && cd ../server && npm install
+    buildCommand: cd client && npm install --include=dev && npm run build && cd ../server && npm install --omit=dev
     startCommand: cd server && npm start
     envVars:
       - key: NODE_ENV
