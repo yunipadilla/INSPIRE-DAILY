@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fredoka:wght@500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -35,11 +35,37 @@ body {
   color: transparent;
 }
 
+/* Every card is a small physical object: a bubblier radius, a top inner
+   highlight (light catching the upper edge), and a soft layered shadow for
+   real elevation instead of a flat 1px border doing all the work. */
 .card {
   background: #fff;
-  border-radius: 1rem;
-  border: 0.5px solid #e5e5e5;
-  box-shadow: 0 1px 2px rgba(26, 26, 46, 0.03), 0 4px 12px rgba(26, 26, 46, 0.045);
+  border-radius: 1.25rem;
+  border: 1px solid rgba(26, 26, 46, 0.055);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 2px 6px rgba(26, 26, 46, 0.05),
+    0 10px 24px -10px rgba(26, 26, 46, 0.10);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Modifier for cards that are themselves the tap target (Today's Actions,
+   task board cards, goal template rows…) — gently rises on hover, like
+   picking it up off the table. */
+.card-lift {
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .card-lift:hover {
+    transform: translateY(-4px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.8) inset,
+      0 4px 10px rgba(26, 26, 46, 0.06),
+      0 20px 36px -12px rgba(129, 140, 248, 0.28);
+  }
+}
+.card-lift:active {
+  transform: translateY(-1px) scale(0.985);
 }
 
 /* Tactile press feedback for anything tappable — cards, buttons, tiles. */
@@ -50,16 +76,21 @@ body {
   transform: scale(0.97);
 }
 
-/* Small colored icon badge used in section headers, e.g. 🔥 in a soft circle. */
+/* Colorful circular icon badge — every icon in the app sits inside one of
+   these rather than floating bare. A soft inner top highlight + gentle drop
+   shadow gives it the same "small bubble" feel as everything else. */
 .icon-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 0.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
   font-size: 1.05rem;
   flex-shrink: 0;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.75) inset,
+    0 3px 8px rgba(26, 26, 46, 0.10);
 }
 
 .input {
@@ -80,3 +111,203 @@ body {
 /* Slim, unobtrusive scrollbar for the horizontal Daily Scores sliders. */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* =========================================================================
+   Inspire Daily's "bubble" design language — the app's visual identity.
+   Soft 3D surfaces, rounded bubble shapes, floating gradients, layered
+   shadows. Built entirely from the existing brand palette (mint/sky/indigo/
+   fuchsia/rose, navy, appbg) — no new colors introduced. `.card`/`.icon-badge`
+   above already carry the language onto every page; everything below is the
+   bigger, page-level vocabulary (full bleed backgrounds, display headings,
+   entrance choreography) used by Login today and available to any page.
+   ========================================================================= */
+
+.font-display-bubble {
+  font-family: 'Fredoka', 'Inter', system-ui, sans-serif;
+}
+
+/* Full-bleed decorative background: layered pastel gradient + blurred blobs.
+   Everything here is aria-hidden and pointer-events-none at the markup level. */
+.bubble-page-bg {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 0%, rgba(110, 231, 183, 0.28), transparent 60%),
+    radial-gradient(ellipse 70% 55% at 100% 10%, rgba(129, 140, 248, 0.24), transparent 60%),
+    radial-gradient(ellipse 75% 60% at 90% 100%, rgba(251, 113, 133, 0.20), transparent 60%),
+    radial-gradient(ellipse 70% 55% at 5% 95%, rgba(56, 189, 248, 0.22), transparent 60%),
+    #fafafa;
+}
+.bubble-page-bg--full { min-height: 100svh; }
+
+.bubble-blob {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(50px);
+  opacity: 0.55;
+  will-change: transform;
+}
+.bubble-blob--1 { width: 380px; height: 380px; top: -120px; left: -100px; background: linear-gradient(135deg, #6ee7b7, #38bdf8); animation: bubble-float-a 22s ease-in-out infinite; }
+.bubble-blob--2 { width: 320px; height: 320px; top: 10%; right: -120px; background: linear-gradient(135deg, #818cf8, #e879f9); animation: bubble-float-b 26s ease-in-out infinite; }
+.bubble-blob--3 { width: 300px; height: 300px; bottom: -100px; left: 8%; background: linear-gradient(135deg, #fb7185, #e879f9); animation: bubble-float-a 24s ease-in-out infinite reverse; }
+.bubble-blob--4 { width: 260px; height: 260px; bottom: -60px; right: 6%; background: linear-gradient(135deg, #fef9c3, #fed7aa); animation: bubble-float-b 20s ease-in-out infinite reverse; }
+
+.bubble-sparkle {
+  position: absolute;
+  color: #818cf8;
+  opacity: 0.55;
+  animation: bubble-twinkle 3.4s ease-in-out infinite;
+}
+
+@keyframes bubble-float-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(24px, -18px) scale(1.05); }
+}
+@keyframes bubble-float-b {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-20px, 22px) scale(1.04); }
+}
+@keyframes bubble-twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.9); }
+  50% { opacity: 0.7; transform: scale(1.1); }
+}
+
+/* The floating "hero" card used by full-page templates (Login today) —
+   opaque-enough surface (not glassmorphism) with layered shadows for
+   elevation + an inner top highlight that "catches the light". */
+.bubble-card {
+  position: relative;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(255, 255, 255, 0.99));
+  border-radius: 1.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 30px 60px -20px rgba(129, 140, 248, 0.35),
+    0 12px 28px -12px rgba(26, 26, 46, 0.18);
+}
+
+.bubble-heading {
+  font-family: 'Fredoka', 'Inter', system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #1a1a2e;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9),
+    0 2px 0 rgba(129, 140, 248, 0.15),
+    0 4px 10px rgba(129, 140, 248, 0.18);
+}
+
+.input-bubble {
+  width: 100%;
+  border: 1px solid #ececf3;
+  border-radius: 1rem;
+  padding: 0.7rem 1rem;
+  font-size: 0.95rem;
+  color: #1a1a2e;
+  background: #f8f8fc;
+  box-shadow: inset 0 2px 5px rgba(26, 26, 46, 0.06), inset 0 1px 2px rgba(26, 26, 46, 0.04);
+  transition: box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+.input-bubble:focus {
+  outline: none;
+  border-color: #818cf8;
+  background: #fff;
+  box-shadow: inset 0 2px 5px rgba(26, 26, 46, 0.05), 0 0 0 4px rgba(129, 140, 248, 0.18);
+}
+.input-bubble:-webkit-autofill {
+  -webkit-text-fill-color: #1a1a2e;
+  -webkit-box-shadow: 0 0 0 1000px #f8f8fc inset;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* The app's one primary-button shape: a touchable pill with real depth.
+   Deliberately carries no background/text color of its own — pair it with
+   whichever gradient-* (or gradient-rainbow) class fits the surrounding tab,
+   same as before, so every tab's button keeps its own color identity while
+   sharing one consistent shape/shadow/motion language. */
+.btn-bubble {
+  position: relative;
+  border-radius: 999px;
+  font-weight: 600;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.45) inset,
+    0 10px 24px -8px rgba(129, 140, 248, 0.45),
+    0 4px 10px -4px rgba(26, 26, 46, 0.20);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.btn-bubble:hover:not(:disabled) {
+  filter: brightness(1.04);
+}
+@media (hover: hover) {
+  .btn-bubble:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.45) inset,
+      0 16px 30px -10px rgba(129, 140, 248, 0.6),
+      0 6px 14px -6px rgba(26, 26, 46, 0.28);
+  }
+}
+.btn-bubble:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 4px 12px -6px rgba(129, 140, 248, 0.5);
+}
+.btn-bubble:focus-visible {
+  outline: 3px solid #38bdf8;
+  outline-offset: 3px;
+}
+.btn-bubble:disabled {
+  filter: saturate(0.7);
+  opacity: 0.75;
+  cursor: default;
+}
+
+/* Gentle fade-and-rise entrance, with optional stagger — used for card/page
+   content appearing (Login form fields, a newly-mounted tab's sections). */
+.rise-in {
+  animation: rise-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.11s; }
+.stagger-3 { animation-delay: 0.17s; }
+.stagger-4 { animation-delay: 0.23s; }
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Subtle cross-fade used for tab-to-tab page transitions inside the app
+   shell (see AppShell.jsx) — kept short and simple so navigation still
+   feels instant, not delayed. */
+.page-fade-enter {
+  animation: page-fade 0.22s ease-out both;
+}
+@keyframes page-fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble-blob,
+  .bubble-sparkle,
+  .rise-in,
+  .page-fade-enter {
+    animation: none !important;
+  }
+  .rise-in,
+  .page-fade-enter {
+    opacity: 1;
+    transform: none;
+  }
+  .card-lift:hover {
+    transform: none;
+  }
+  .btn-bubble,
+  .btn-bubble:hover:not(:disabled),
+  .btn-bubble:active:not(:disabled) {
+    transition: none;
+    transform: none;
+  }
+}

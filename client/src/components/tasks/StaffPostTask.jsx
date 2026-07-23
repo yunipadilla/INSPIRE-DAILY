@@ -32,7 +32,7 @@ export default function StaffPostTask({ onPost }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="pressable w-full rounded-lg py-2.5 font-semibold text-navy gradient-internship-tasks"
+        className="btn-bubble w-full py-2.5 text-navy gradient-internship-tasks"
       >
         + Post a Task
       </button>
@@ -58,7 +58,7 @@ export default function StaffPostTask({ onPost }) {
         <button
           type="submit"
           disabled={submitting}
-          className="pressable flex-1 rounded-lg py-2 text-sm font-semibold text-navy gradient-internship-tasks disabled:opacity-60"
+          className="btn-bubble flex-1 py-2 text-sm text-navy gradient-internship-tasks"
         >
           {submitting ? 'Posting…' : 'Post Task'}
         </button>

@@ -88,13 +88,13 @@ export default function NewFitnessGoal() {
       <div className="flex gap-2 pt-2 mb-4">
         <button
           onClick={() => setSubType('daily')}
-          className={`flex-1 rounded-lg py-2 text-sm font-semibold ${subType === 'daily' ? 'gradient-goals text-navy' : 'border border-[#e5e5e5] text-navy/60'}`}
+          className={`pressable flex-1 rounded-full py-2 text-sm font-semibold transition-colors ${subType === 'daily' ? 'btn-bubble gradient-goals text-navy' : 'border border-[#e5e5e5] text-navy/60'}`}
         >
           Daily Target
         </button>
         <button
           onClick={() => setSubType('weekly')}
-          className={`flex-1 rounded-lg py-2 text-sm font-semibold ${subType === 'weekly' ? 'gradient-goals text-navy' : 'border border-[#e5e5e5] text-navy/60'}`}
+          className={`pressable flex-1 rounded-full py-2 text-sm font-semibold transition-colors ${subType === 'weekly' ? 'btn-bubble gradient-goals text-navy' : 'border border-[#e5e5e5] text-navy/60'}`}
         >
           Weekly Schedule
         </button>
@@ -118,7 +118,7 @@ export default function NewFitnessGoal() {
             <input type="number" min="0" max="6" className="input" value={restDaysPerWeek} onChange={(e) => setRestDaysPerWeek(e.target.value)} />
           </Field>
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <button type="submit" disabled={submitting} className="w-full rounded-lg py-3 font-semibold text-navy gradient-goals disabled:opacity-60">
+          <button type="submit" disabled={submitting} className="btn-bubble w-full py-3 text-navy gradient-goals">
             {submitting ? 'Creating…' : 'Create Fitness Goal'}
           </button>
         </form>
@@ -160,7 +160,7 @@ export default function NewFitnessGoal() {
             </div>
           </Field>
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <button type="submit" disabled={submitting} className="w-full rounded-lg py-3 font-semibold text-navy gradient-goals disabled:opacity-60">
+          <button type="submit" disabled={submitting} className="btn-bubble w-full py-3 text-navy gradient-goals">
             {submitting ? 'Creating…' : 'Create Fitness Goal'}
           </button>
         </form>

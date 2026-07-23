@@ -182,7 +182,7 @@ export default function Signup() {
         <button
           type="submit"
           disabled={submitting}
-          className="w-full rounded-lg py-2.5 font-semibold text-white gradient-rainbow disabled:opacity-60"
+          className="btn-bubble w-full py-2.5 text-white gradient-rainbow"
         >
           {submitting ? 'Creating account…' : 'Sign up'}
         </button>

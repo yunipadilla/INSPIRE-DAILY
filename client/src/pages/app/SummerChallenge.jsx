@@ -287,7 +287,7 @@ export default function SummerChallenge() {
       <button
         onClick={handleSubmit}
         disabled={submitting}
-        className="pressable w-full rounded-lg py-3 font-semibold text-navy gradient-summer-challenge disabled:opacity-60"
+        className="btn-bubble w-full py-3 text-navy gradient-summer-challenge"
       >
         {submitting ? 'Submitting…' : `Submit My Points · ${livePoints} pts`}
       </button>

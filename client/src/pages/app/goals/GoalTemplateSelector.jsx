@@ -18,9 +18,11 @@ export default function GoalTemplateSelector() {
           <button
             key={t.path}
             onClick={() => navigate(`/app/goals/new/${t.path}`)}
-            className="w-full card p-4 flex items-center gap-3 text-left"
+            className="pressable card card-lift w-full p-4 flex items-center gap-3 text-left"
           >
-            <span className="text-2xl">{t.emoji}</span>
+            <span className="icon-badge w-12 h-12 text-2xl" style={{ background: '#fae8ff' }}>
+              {t.emoji}
+            </span>
             <div>
               <div className="font-semibold text-navy">{t.name}</div>
               <div className="text-sm text-navy/50">{t.desc}</div>

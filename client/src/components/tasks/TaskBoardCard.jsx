@@ -17,7 +17,7 @@ export default function TaskBoardCard({ task, onSignUp, signingUp }) {
         <button
           onClick={() => onSignUp(task.id)}
           disabled={signingUp}
-          className="pressable w-full mt-1 rounded-lg py-2 text-sm font-semibold text-navy gradient-internship-tasks disabled:opacity-60"
+          className="btn-bubble w-full mt-1 py-2 text-sm text-navy gradient-internship-tasks"
         >
           {signingUp ? 'Signing up…' : 'Sign Up'}
         </button>

@@ -35,12 +35,12 @@ export default function LearningGoalCard({ goal, onRefresh, onCelebrate }) {
         <div className="space-y-2">
           <input type="number" min="1" placeholder="Minutes practiced" value={minutes} onChange={(e) => setMinutes(e.target.value)} className="input" />
           <input placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} className="input" />
-          <button onClick={handleLog} disabled={submitting} className="pressable w-full rounded-lg py-2 text-sm font-semibold text-navy gradient-goals disabled:opacity-60">
+          <button onClick={handleLog} disabled={submitting} className="btn-bubble w-full py-2 text-sm text-navy gradient-goals">
             {submitting ? 'Saving…' : 'Save Session'}
           </button>
         </div>
       ) : (
-        <button onClick={() => setLogging(true)} className="pressable w-full rounded-lg py-2 text-sm font-semibold text-navy gradient-goals">
+        <button onClick={() => setLogging(true)} className="btn-bubble w-full py-2 text-sm text-navy gradient-goals">
           Log a Session
         </button>
       )}

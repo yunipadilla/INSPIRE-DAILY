@@ -41,7 +41,7 @@ export default function MeditationGoalCard({ goal, onRefresh, onCelebrate }) {
       {loggedToday ? (
         <p className="text-sm font-semibold text-emerald-600">✓ Logged today's meditation</p>
       ) : (
-        <button onClick={handleLog} disabled={submitting} className="pressable w-full rounded-lg py-2 text-sm font-semibold text-navy gradient-goals disabled:opacity-60">
+        <button onClick={handleLog} disabled={submitting} className="btn-bubble w-full py-2 text-sm text-navy gradient-goals">
           {submitting ? 'Saving…' : "Log Today's Meditation"}
         </button>
       )}

@@ -211,7 +211,7 @@ export default function DailyScores() {
       <button
         onClick={handleSubmit}
         disabled={submitting}
-        className="pressable w-full rounded-lg py-3 font-semibold text-navy gradient-daily-scores disabled:opacity-60"
+        className="btn-bubble w-full py-3 text-navy gradient-daily-scores"
       >
         {submitting ? 'Submitting…' : "Submit Today's Score"}
       </button>

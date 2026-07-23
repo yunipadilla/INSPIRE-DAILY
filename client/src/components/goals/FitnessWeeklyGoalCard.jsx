@@ -41,7 +41,7 @@ export default function FitnessWeeklyGoalCard({ goal, onRefresh, onCelebrate }) 
         <p className="text-sm font-semibold text-emerald-600">✓ Logged for today</p>
       ) : recap?.todaysActivity ? (
         <div className="flex gap-2">
-          <button onClick={() => logDay('completed')} disabled={submitting} className="pressable flex-1 rounded-lg py-2 text-sm font-semibold text-navy gradient-goals disabled:opacity-60">
+          <button onClick={() => logDay('completed')} disabled={submitting} className="btn-bubble flex-1 py-2 text-sm text-navy gradient-goals">
             Log It
           </button>
           <button onClick={() => logDay('rest')} disabled={submitting} className="flex-1 rounded-lg py-2 text-sm font-semibold text-navy/60 border border-[#e5e5e5] disabled:opacity-60">

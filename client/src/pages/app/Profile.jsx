@@ -93,7 +93,7 @@ export default function Profile() {
           <SectionHeader icon="🧑‍💼" iconBg="#e0e7ff" title="Staff Tools" />
           <a
             href="/staff"
-            className="pressable card p-4 flex items-center justify-between gradient-rainbow text-white font-semibold shadow-md"
+            className="pressable card card-lift p-4 flex items-center justify-between gradient-rainbow text-white font-semibold shadow-md"
           >
             Open Program Dashboard
             <span>→</span>

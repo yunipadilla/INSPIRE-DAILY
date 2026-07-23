@@ -88,7 +88,7 @@ export default function NewReadingGoal() {
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 
-        <button type="submit" disabled={submitting} className="w-full rounded-lg py-3 font-semibold text-navy gradient-goals disabled:opacity-60">
+        <button type="submit" disabled={submitting} className="btn-bubble w-full py-3 text-navy gradient-goals">
           {submitting ? 'Creating…' : 'Create Reading Goal'}
         </button>
       </form>

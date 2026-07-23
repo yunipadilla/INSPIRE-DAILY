@@ -4,6 +4,7 @@ import { apiFetch } from '../../lib/api';
 import { greetingFor } from '../../lib/pacificTime';
 import { useAuth } from '../../context/AuthContext';
 import SectionHeader from '../../components/SectionHeader';
+import BubbleBackground from '../../components/BubbleBackground';
 
 const ACTION_CARDS = [
   { key: 'dailyScores', label: 'Daily Scores', to: '/app/daily-scores', gradient: 'gradient-daily-scores', emoji: '📊', accent: '#3b82f6', bg: '#eff6ff' },
@@ -47,17 +48,23 @@ export default function Home() {
   const actions = ACTION_CARDS.filter((a) => !a.hideForRoles?.includes(user?.appRole));
 
   return (
-    <div className="py-4 space-y-7">
-      <h1 className="text-2xl font-bold text-navy">{greetingFor(user?.firstName || '')}</h1>
+    <div className="space-y-7">
+      <div className="relative -mx-4 px-4 pt-4 pb-6 overflow-hidden">
+        <BubbleBackground variant="light" />
 
-      {summary && (
-        <div className="gradient-rainbow rounded-2xl p-5 grid grid-cols-4 gap-2 text-white text-center shadow-md">
-          <Stat value={summary.stats.streakCount} label="Streak" />
-          <Stat value={summary.stats.badgesCount} label="Badges" />
-          <Stat value={summary.stats.activeGoalsCount} label="Goals" />
-          <Stat value={`${summary.stats.streakShields}/${summary.stats.maxShields}`} label="Shields" />
-        </div>
-      )}
+        <h1 className="bubble-heading text-2xl sm:text-3xl relative z-10 rise-in">
+          {greetingFor(user?.firstName || '')}
+        </h1>
+
+        {summary && (
+          <div className="rise-in stagger-1 relative z-10 mt-5 gradient-rainbow rounded-2xl p-5 grid grid-cols-4 gap-2 text-white text-center shadow-md">
+            <Stat value={summary.stats.streakCount} label="Streak" />
+            <Stat value={summary.stats.badgesCount} label="Badges" />
+            <Stat value={summary.stats.activeGoalsCount} label="Goals" />
+            <Stat value={`${summary.stats.streakShields}/${summary.stats.maxShields}`} label="Shields" />
+          </div>
+        )}
+      </div>
 
       <section>
         <SectionHeader icon="⚡" iconBg="#fef3c7" title="Today's Actions" />
@@ -66,7 +73,7 @@ export default function Home() {
             <Link
               key={a.key}
               to={a.to}
-              className="pressable card p-4 flex flex-col justify-between h-28 overflow-hidden relative"
+              className="pressable card card-lift p-4 flex flex-col justify-between h-28 overflow-hidden relative"
               style={{ borderLeft: `4px solid ${a.accent}` }}
             >
               <div className="flex items-center gap-2">

@@ -57,7 +57,7 @@ export default function MyTaskCard({ signup, onComplete }) {
           <button
             onClick={handleComplete}
             disabled={submitting}
-            className="pressable w-full rounded-lg py-2 text-sm font-semibold text-navy gradient-internship-tasks disabled:opacity-60"
+            className="btn-bubble w-full py-2 text-sm text-navy gradient-internship-tasks"
           >
             {submitting ? 'Saving…' : 'Mark Complete'}
           </button>

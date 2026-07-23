@@ -29,7 +29,7 @@ export default function CustomGoalCard({ goal, onRefresh, onCelebrate }) {
         (checkedInToday ? (
           <p className="text-sm font-semibold text-emerald-600">✓ Checked in today</p>
         ) : (
-          <button onClick={() => handleLog({})} disabled={submitting} className="pressable w-full rounded-lg py-2 text-sm font-semibold text-navy gradient-goals disabled:opacity-60">
+          <button onClick={() => handleLog({})} disabled={submitting} className="btn-bubble w-full py-2 text-sm text-navy gradient-goals">
             Check In Today
           </button>
         ))}
