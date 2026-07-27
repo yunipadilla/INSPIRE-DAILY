@@ -29,7 +29,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signup = useCallback(async (payload) => {
-    return apiFetch('/auth/signup', { method: 'POST', body: payload });
+    const data = await apiFetch('/auth/signup', { method: 'POST', body: payload });
+    // A session (token) is only present when the account was approved on
+    // the spot. The one case it's absent is parental consent still
+    // pending — there, no valid session exists yet, so don't set `user`.
+    if (data.token) setUser(data.user);
+    return data;
   }, []);
 
   const logout = useCallback(async () => {

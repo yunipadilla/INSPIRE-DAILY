@@ -14,6 +14,7 @@ import {
 } from '../repositories/users.js';
 import { requireAuth } from '../middleware/auth.js';
 import { loginLimiter, signupLimiter } from '../middleware/rateLimit.js';
+import { ACCOUNT_STATUS, isPending, isBlocked } from '../config/accountStatus.js';
 
 const router = Router();
 const PARENTAL_CONSENT_TOKEN_TTL_HOURS = 72;
@@ -52,7 +53,6 @@ router.post('/signup', signupLimiter, async (req, res) => {
   }
 
   const passwordHash = await bcrypt.hash(data.password, 12);
-  const isStaff = data.appRole === 'staff';
 
   let parentalConsentToken = null;
   let parentalConsentTokenExpires = null;
@@ -63,6 +63,14 @@ router.post('/signup', signupLimiter, async (req, res) => {
     ).toISOString();
   }
 
+  // Immediate self-service activation: every public signup is approved on
+  // the spot and can log in right away — the manual staff-review queue is
+  // gone. The one exception is a still-disabled-by-default legal gate, not
+  // an administrative one: if PARENTAL_CONSENT_ENABLED is ever flipped back
+  // on, an under-16 signup must stay pending until a parent/guardian
+  // actually confirms, regardless of this product change.
+  const accountStatus = isMinor ? ACCOUNT_STATUS.PENDING : ACCOUNT_STATUS.APPROVED;
+
   const user = await createUser({
     email: data.email,
     passwordHash,
@@ -72,14 +80,14 @@ router.post('/signup', signupLimiter, async (req, res) => {
     phone: data.phone || null,
     profilePhotoUrl: data.profilePhotoUrl || null,
     appRole: data.appRole,
-    accountStatus: isStaff ? 'approved' : 'pending',
+    accountStatus,
     quoteOfDay: Boolean(data.quoteOfDay),
     parentalConsentRequired: isMinor,
     parentalConsentEmail: isMinor ? data.parentGuardianEmail : null,
     parentalConsentStatus: isMinor ? 'pending' : 'not_required',
     parentalConsentToken,
     parentalConsentTokenExpires,
-    approvedAt: isStaff ? new Date().toISOString() : null,
+    approvedAt: accountStatus === ACCOUNT_STATUS.APPROVED ? new Date().toISOString() : null,
   });
 
   if (isMinor) {
@@ -94,12 +102,24 @@ router.post('/signup', signupLimiter, async (req, res) => {
     });
   }
 
+  if (accountStatus !== ACCOUNT_STATUS.APPROVED) {
+    // Only reachable if parental consent is required — no session exists
+    // yet because the account genuinely isn't allowed in until a parent or
+    // guardian confirms via the emailed link.
+    return res.status(201).json({
+      message: 'Your account is almost ready — we\'ve emailed a parental consent request, and you can log in once it\'s confirmed.',
+      user: toClientUser(user),
+      requiresParentalConsent: true,
+    });
+  }
+
+  const token = signToken(user);
+  res.cookie('token', token, COOKIE_OPTIONS);
   return res.status(201).json({
-    message: isStaff
-      ? 'Your Staff account is ready — you can log in now.'
-      : 'Your account is pending approval — an administrator will review and approve your account shortly.',
+    message: 'Welcome to Inspire Daily! Your account is ready.',
+    token,
     user: toClientUser(user),
-    requiresParentalConsent: isMinor,
+    requiresParentalConsent: false,
   });
 });
 
@@ -115,16 +135,16 @@ router.post('/login', loginLimiter, async (req, res) => {
     return res.status(401).json({ error: 'Invalid email or password.' });
   }
 
-  if (user.account_status === 'pending') {
+  if (isPending(user.account_status)) {
     return res.status(403).json({
       error: 'Your account is pending approval — please wait for an administrator to grant you access.',
-      accountStatus: 'pending',
+      accountStatus: user.account_status,
     });
   }
-  if (user.account_status === 'denied') {
+  if (isBlocked(user.account_status)) {
     return res.status(403).json({
-      error: 'Your account request was not approved. Please contact an administrator.',
-      accountStatus: 'denied',
+      error: 'Your account is not active. Please contact an administrator.',
+      accountStatus: user.account_status,
     });
   }
 

@@ -1,8 +1,9 @@
 import { query } from '../db.js';
+import { ACCOUNT_STATUS } from '../config/accountStatus.js';
 
 const PUBLIC_COLUMNS = `
   id, email, first_name, last_name, birthday, phone, profile_photo_url,
-  app_role, account_status, quote_of_day, parental_consent_required,
+  app_role, account_status, system_role, quote_of_day, parental_consent_required,
   parental_consent_status, streak_count, streak_shields, streak_last_date,
   streak_recovery_available_until, streak_recovery_prior_count,
   created_at, approved_at
@@ -54,27 +55,22 @@ export async function createUser(data) {
   return rows[0];
 }
 
-export async function approveUser(id) {
+/** Reactivates an account (e.g. one a staff member previously suspended). */
+export async function activateUser(id) {
   const { rows } = await query(
-    `update users set account_status = 'approved', approved_at = now() where id = $1 returning ${PUBLIC_COLUMNS}`,
-    [id]
+    `update users set account_status = $2, approved_at = now() where id = $1 returning ${PUBLIC_COLUMNS}`,
+    [id, ACCOUNT_STATUS.APPROVED]
   );
   return rows[0];
 }
 
-export async function denyUser(id) {
+/** Blocks an account from signing in until reactivated. */
+export async function suspendUser(id) {
   const { rows } = await query(
-    `update users set account_status = 'denied' where id = $1 returning ${PUBLIC_COLUMNS}`,
-    [id]
+    `update users set account_status = $2 where id = $1 returning ${PUBLIC_COLUMNS}`,
+    [id, ACCOUNT_STATUS.DENIED]
   );
   return rows[0];
-}
-
-export async function listPendingUsers() {
-  const { rows } = await query(
-    `select ${PUBLIC_COLUMNS} from users where account_status = 'pending' order by created_at asc`
-  );
-  return rows;
 }
 
 export async function confirmParentalConsentByToken(token) {
@@ -118,6 +114,7 @@ export function toClientUser(user) {
     profilePhotoUrl: user.profile_photo_url,
     appRole: user.app_role,
     accountStatus: user.account_status,
+    systemRole: user.system_role,
     quoteOfDay: user.quote_of_day,
     streakCount: user.streak_count,
     streakShields: user.streak_shields,
@@ -130,3 +127,14 @@ export function toClientUser(user) {
 }
 
 export const ALL_APP_ROLES = ['intern', 'postgrad', 'alumni', 'staff'];
+
+/**
+ * Roles the public signup form may assign. Excludes 'staff' deliberately —
+ * with the manual approval gate removed, a self-registered account is now
+ * active the instant it's created, so public signup can no longer be
+ * trusted to hand out the 'staff' app_role (which today grants real power:
+ * approving/denying other users, managing the internship task board). Staff
+ * accounts must be created by an existing staff member via a separate,
+ * non-public path.
+ */
+export const PUBLIC_SIGNUP_APP_ROLES = ['intern', 'postgrad', 'alumni'];

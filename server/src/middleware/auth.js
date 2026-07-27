@@ -1,5 +1,6 @@
 import { verifyToken } from '../lib/jwt.js';
 import { findById } from '../repositories/users.js';
+import { isActive, isPending } from '../config/accountStatus.js';
 
 function extractToken(req) {
   if (req.cookies?.token) return req.cookies.token;
@@ -15,12 +16,11 @@ export async function requireAuth(req, res, next) {
     const payload = verifyToken(token);
     const user = await findById(payload.sub);
     if (!user) return res.status(401).json({ error: 'Not authenticated.' });
-    if (user.account_status !== 'approved') {
+    if (!isActive(user.account_status)) {
       return res.status(403).json({
-        error:
-          user.account_status === 'pending'
-            ? 'Your account is pending approval — please wait for an administrator to grant you access.'
-            : 'Your account is not active. Please contact an administrator.',
+        error: isPending(user.account_status)
+          ? 'Your account is pending approval — please wait for an administrator to grant you access.'
+          : 'Your account is not active. Please contact an administrator.',
         accountStatus: user.account_status,
       });
     }

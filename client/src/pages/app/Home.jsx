@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
 import { greetingFor } from '../../lib/pacificTime';
 import { useAuth } from '../../context/AuthContext';
@@ -35,9 +35,11 @@ function ActionStatusPill({ status }) {
 
 export default function Home() {
   const { user } = useAuth();
+  const location = useLocation();
   const [summary, setSummary] = useState(null);
   const [feed, setFeed] = useState([]);
   const [leaderboard, setLeaderboard] = useState(null);
+  const [showWelcome, setShowWelcome] = useState(Boolean(location.state?.justSignedUp));
 
   useEffect(() => {
     apiFetch('/home/summary').then(setSummary);
@@ -49,6 +51,21 @@ export default function Home() {
 
   return (
     <div className="space-y-7">
+      {showWelcome && (
+        <div className="card p-4 flex items-center justify-between gap-3 gradient-rainbow text-white shadow-md rise-in">
+          <p className="text-sm font-semibold">
+            Welcome, {location.state?.firstName || user?.firstName}! So glad you're here. 🎉
+          </p>
+          <button
+            onClick={() => setShowWelcome(false)}
+            aria-label="Dismiss welcome message"
+            className="pressable text-white/90 text-lg leading-none flex-shrink-0"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="relative -mx-4 px-4 pt-4 pb-6 overflow-hidden">
         <BubbleBackground variant="light" />
 

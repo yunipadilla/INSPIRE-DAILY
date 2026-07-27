@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ALL_APP_ROLES } from '../repositories/users.js';
+import { PUBLIC_SIGNUP_APP_ROLES } from '../repositories/users.js';
 
 export const signupSchema = z
   .object({
@@ -10,7 +10,9 @@ export const signupSchema = z
     password: z.string().min(8, 'Password must be at least 8 characters.'),
     phone: z.string().trim().optional().or(z.literal('')),
     profilePhotoUrl: z.string().trim().optional().or(z.literal('')),
-    appRole: z.enum(ALL_APP_ROLES, { errorMap: () => ({ message: 'A valid role is required.' }) }),
+    // Public signup can only self-assign a participant-tier role — 'staff'
+    // is deliberately excluded here (see PUBLIC_SIGNUP_APP_ROLES).
+    appRole: z.enum(PUBLIC_SIGNUP_APP_ROLES, { errorMap: () => ({ message: 'A valid role is required.' }) }),
     quoteOfDay: z.boolean().optional(),
     parentGuardianEmail: z.string().trim().email().optional().or(z.literal('')),
   })

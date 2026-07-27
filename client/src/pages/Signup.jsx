@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../components/AuthLayout';
 import { useAuth } from '../context/AuthContext';
 
+// 'staff' is deliberately not offered here — public signup is now instant
+// (no manual review step), so it can only ever hand out participant-tier
+// roles. Staff accounts are created separately by an existing staff member.
 const ROLES = [
   { value: 'intern', label: 'Intern' },
   { value: 'postgrad', label: 'Postgrad' },
   { value: 'alumni', label: 'Alumni' },
-  { value: 'staff', label: 'Staff' },
 ];
 
 // Parental consent is disabled for now per program decision — flip this back
@@ -27,6 +29,7 @@ function ageFromBirthday(birthday) {
 
 export default function Signup() {
   const { signup } = useAuth();
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -87,19 +90,34 @@ export default function Signup() {
   }
 
   if (result) {
+    // requiresParentalConsent is only ever true when the (currently
+    // disabled) under-16 gate is re-enabled — no session exists yet in
+    // that case, so there's nowhere to enter. Otherwise the account is
+    // already active with a live session: welcome them straight in.
+    if (result.requiresParentalConsent) {
+      return (
+        <AuthLayout>
+          <h1 className="text-xl font-bold text-navy mb-3">Almost there!</h1>
+          <p className="text-navy/80">{result.message}</p>
+          <Link to="/login" className="inline-block mt-6 text-sm font-semibold text-[#38bdf8]">
+            Back to login
+          </Link>
+        </AuthLayout>
+      );
+    }
+
     return (
       <AuthLayout>
-        <h1 className="text-xl font-bold text-navy mb-3">Thanks for signing up!</h1>
-        <p className="text-navy/80">{result.message}</p>
-        {result.requiresParentalConsent && (
-          <p className="text-navy/60 text-sm mt-3">
-            We've also emailed a parental consent request to the email you provided — your account
-            can't be approved until that's confirmed.
-          </p>
-        )}
-        <Link to="/login" className="inline-block mt-6 text-sm font-semibold text-[#38bdf8]">
-          Back to login
-        </Link>
+        <h1 className="text-xl font-bold text-navy mb-3">
+          Welcome to Inspire Daily, {form.firstName}! 🎉
+        </h1>
+        <p className="text-navy/80">Your account is ready — let's get started.</p>
+        <button
+          onClick={() => navigate('/app', { state: { justSignedUp: true, firstName: form.firstName } })}
+          className="btn-bubble w-full py-2.5 text-white gradient-rainbow mt-6"
+        >
+          Enter Inspire Daily →
+        </button>
       </AuthLayout>
     );
   }
