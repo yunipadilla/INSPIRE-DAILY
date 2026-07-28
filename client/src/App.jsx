@@ -2,8 +2,11 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppShell from './components/AppShell';
+import ThemeAccountSync from './components/ThemeAccountSync';
 import Signup from './pages/Signup';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import ParentalConsent from './pages/ParentalConsent';
 import Home from './pages/app/Home';
 import DailyScores from './pages/app/DailyScores';
@@ -27,10 +30,13 @@ function RootRedirect() {
 export default function App() {
   return (
     <AuthProvider>
+      <ThemeAccountSync />
       <Routes>
         <Route path="/" element={<RootRedirect />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/parental-consent" element={<ParentalConsent />} />
 
         <Route element={<ProtectedRoute />}>

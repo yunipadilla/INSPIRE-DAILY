@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { query } from '../db.js';
-import { toClientUser } from '../repositories/users.js';
+import { toClientUser, updateThemePreference } from '../repositories/users.js';
 import { ptDateString } from '../config/pacificTime.js';
+
+const VALID_THEME_PREFERENCES = ['light', 'dark', 'system'];
 
 const router = Router();
 
@@ -44,6 +46,21 @@ router.get('/', requireAuth, async (req, res) => {
     },
     isStaff: req.user.app_role === 'staff',
   });
+});
+
+/**
+ * Cross-device theme sync — best-effort from the client's point of view
+ * (see ThemeAccountSync.jsx), but this endpoint itself is a plain,
+ * fully-authenticated write scoped to exactly one column on the caller's
+ * own row. No other field can be changed here.
+ */
+router.patch('/theme', requireAuth, async (req, res) => {
+  const { themePreference } = req.body || {};
+  if (!VALID_THEME_PREFERENCES.includes(themePreference)) {
+    return res.status(400).json({ error: 'themePreference must be one of light, dark, or system.' });
+  }
+  const user = await updateThemePreference(req.user.id, themePreference);
+  res.json({ user: toClientUser(user) });
 });
 
 export default router;

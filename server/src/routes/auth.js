@@ -1,19 +1,28 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { signupSchema, loginSchema } from '../lib/validators.js';
+import { signupSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from '../lib/validators.js';
 import { ageInYears, randomToken } from '../lib/crypto.js';
 import { ptDateString } from '../config/pacificTime.js';
 import { signToken } from '../lib/jwt.js';
 import { sendEmail } from '../services/email.js';
 import { env } from '../config/env.js';
+import { withTransaction } from '../db.js';
 import {
   findByEmail,
   createUser,
   toClientUser,
   confirmParentalConsentByToken,
+  updatePasswordHash,
 } from '../repositories/users.js';
+import { createResetToken, claimResetToken } from '../repositories/passwordResetTokens.js';
+import {
+  generateResetToken,
+  hashResetToken,
+  resetTokenExpiresAt,
+  PASSWORD_RESET_TOKEN_TTL_MINUTES,
+} from '../lib/passwordReset.js';
 import { requireAuth } from '../middleware/auth.js';
-import { loginLimiter, signupLimiter } from '../middleware/rateLimit.js';
+import { loginLimiter, signupLimiter, passwordResetLimiter } from '../middleware/rateLimit.js';
 import { ACCOUNT_STATUS, isPending, isBlocked } from '../config/accountStatus.js';
 
 const router = Router();
@@ -151,6 +160,79 @@ router.post('/login', loginLimiter, async (req, res) => {
   const token = signToken(user);
   res.cookie('token', token, COOKIE_OPTIONS);
   return res.json({ token, user: toClientUser(user) });
+});
+
+router.post('/forgot-password', passwordResetLimiter, async (req, res) => {
+  const parsed = forgotPasswordSchema.safeParse(req.body);
+
+  // The response is identical whether the input was malformed, the email
+  // doesn't exist, or a real reset email was just sent — an attacker must
+  // not be able to use this endpoint to discover which emails have
+  // accounts. Only a successfully-parsed, existing email actually does
+  // anything; everything else silently falls through to the same message.
+  if (parsed.success) {
+    const user = await findByEmail(parsed.data.email);
+    // Deliberately independent of account_status: a suspended/denied
+    // account can still request and complete a password reset — it simply
+    // still can't log in afterward, since that's a separate check in
+    // requireAuth/login. This keeps reset behavior identical regardless of
+    // status, so status can never leak through this endpoint either.
+    if (user) {
+      const { raw, hash } = generateResetToken();
+      await createResetToken(user.id, hash, resetTokenExpiresAt());
+      const resetLink = `${env.clientOrigin}/reset-password?token=${raw}`;
+      await sendEmail({
+        to: user.email,
+        subject: 'Reset your Inspire Daily password',
+        html: `<p>Hi ${user.first_name},</p>
+               <p>Click the link below to choose a new password. This link expires in ${PASSWORD_RESET_TOKEN_TTL_MINUTES} minutes and can only be used once.</p>
+               <p><a href="${resetLink}">Reset your password</a></p>
+               <p>If you didn't request this, you can safely ignore this email — your password hasn't changed.</p>`,
+        text: `Reset your Inspire Daily password: ${resetLink}\n\nThis link expires in ${PASSWORD_RESET_TOKEN_TTL_MINUTES} minutes and can only be used once. If you didn't request this, ignore this email.`,
+        sensitive: true,
+      });
+    }
+  }
+
+  return res.json({
+    message: "If an account exists for that email, we've sent a link to reset your password.",
+  });
+});
+
+router.post('/reset-password', passwordResetLimiter, async (req, res) => {
+  const parsed = resetPasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid request.' });
+  }
+
+  // Hash before opening the transaction — bcrypt is deliberately slow, and
+  // there's no reason to hold a DB connection/transaction open for it.
+  const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+
+  // Claiming the token and updating the password happen in one transaction:
+  // if the password update fails for any reason, the token's used_at is
+  // rolled back with it — a token must never be burned without the
+  // password having actually changed. A token that's missing, expired, or
+  // already used all fail identically, with no distinguishing information
+  // returned.
+  const userId = await withTransaction(async (client) => {
+    const claimedUserId = await claimResetToken(client, hashResetToken(parsed.data.token));
+    if (!claimedUserId) return null;
+    // Only ever touches password_hash/password_changed_at — a reset can
+    // never change app_role, system_role, or account_status, so it cannot
+    // be used to elevate privileges.
+    await updatePasswordHash(client, claimedUserId, passwordHash);
+    return claimedUserId;
+  });
+
+  if (!userId) {
+    return res.status(400).json({ error: 'This reset link is invalid or has expired. Please request a new one.' });
+  }
+
+  // No auto-login: this only proves control of the email inbox, not that
+  // this is a trusted device. Sending the user to log in fresh (with their
+  // new password) is the safer, conventional pattern.
+  return res.json({ message: 'Your password has been reset. You can now log in.' });
 });
 
 router.post('/logout', (req, res) => {

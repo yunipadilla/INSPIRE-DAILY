@@ -4,8 +4,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================================================================
+   Theme tokens — the single source of truth for every color in the app.
+   Values are space-separated RGB triplets so Tailwind's
+   `rgb(var(--x) / <alpha-value>)` pattern (see tailwind.config.cjs) supports
+   opacity modifiers (text-navy/50, etc.). Never hardcode a color directly in
+   a component or page — add a token here (or reuse one) instead.
+
+   :root holds the light values. :root.dark overrides them. The .dark class
+   is applied to <html> by the inline pre-paint script in index.html (to
+   avoid a flash of the wrong theme) and kept in sync by ThemeContext
+   afterward.
+   ========================================================================= */
 :root {
   color-scheme: light;
+
+  --color-bg: 250 247 242; /* warm cream app background, not stark white */
+  --color-surface-elevated: 255 255 255; /* white, used intentionally — not every card */
+  --color-surface-soft: 246 244 254; /* gently tinted pastel surface */
+  --color-surface-interactive: 248 248 252; /* inputs, hover/pressed states */
+  --color-text-primary: 26 26 46; /* navy — existing brand text color */
+  --color-text-secondary: 75 75 99;
+  --color-text-muted: 136 136 160;
+  --color-border: 26 26 46; /* always used at low alpha */
+  --color-shadow: 26 26 46; /* always used at low alpha */
+  --color-highlight: 255 255 255; /* the "light catching the top edge" line on cards */
+  --color-focus-ring: 129 140 248;
+  --color-primary: 129 140 248; /* indigo — existing brand accent */
+  --color-success: 16 185 129;
+  --color-warning: 245 158 11;
+  --color-danger: 244 63 94;
+  --color-lavender: 196 181 253;
+  --color-blue: 96 165 250;
+  --color-peach: 253 186 116;
+  --color-mint: 110 231 183;
+  --color-yellow: 253 230 138;
+}
+
+:root.dark {
+  color-scheme: dark;
+
+  --color-bg: 18 18 28; /* deep navy/charcoal — deliberately not pure black */
+  --color-surface-elevated: 30 30 46;
+  --color-surface-soft: 36 36 56;
+  --color-surface-interactive: 42 42 64;
+  --color-text-primary: 245 244 250; /* warm near-white, not pure white */
+  --color-text-secondary: 196 194 212;
+  --color-text-muted: 139 137 158;
+  --color-border: 255 255 255;
+  --color-shadow: 0 0 0;
+  --color-highlight: 68 68 92; /* lighter-than-surface line, same "catches the light" idea */
+  --color-focus-ring: 165 180 252;
+  --color-primary: 165 180 252; /* brighter indigo for contrast on a dark surface */
+  --color-success: 52 211 153;
+  --color-warning: 251 191 36;
+  --color-danger: 251 113 133;
+  --color-lavender: 216 180 254;
+  --color-blue: 125 211 252;
+  --color-peach: 253 186 116;
+  --color-mint: 110 231 183; /* same brand mint — reads fine on dark navy */
+  --color-yellow: 253 230 138;
 }
 
 html, body, #root {
@@ -14,10 +72,11 @@ html, body, #root {
 
 body {
   margin: 0;
-  background: #fafafa;
-  color: #1a1a2e;
+  background: rgb(var(--color-bg));
+  color: rgb(var(--color-text-primary));
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Tab pastel gradients — shared source of truth so every card/button/nav-icon
@@ -39,14 +98,15 @@ body {
    highlight (light catching the upper edge), and a soft layered shadow for
    real elevation instead of a flat 1px border doing all the work. */
 .card {
-  background: #fff;
+  background: rgb(var(--color-surface-elevated));
   border-radius: 1.25rem;
-  border: 1px solid rgba(26, 26, 46, 0.055);
+  border: 1px solid rgb(var(--color-border) / 0.08);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.7) inset,
-    0 2px 6px rgba(26, 26, 46, 0.05),
-    0 10px 24px -10px rgba(26, 26, 46, 0.10);
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    0 1px 0 rgb(var(--color-highlight) / 0.7) inset,
+    0 2px 6px rgb(var(--color-shadow) / 0.08),
+    0 10px 24px -10px rgb(var(--color-shadow) / 0.16);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.2s ease, border-color 0.2s ease;
 }
 
 /* Modifier for cards that are themselves the tap target (Today's Actions,
@@ -59,9 +119,9 @@ body {
   .card-lift:hover {
     transform: translateY(-4px);
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.8) inset,
-      0 4px 10px rgba(26, 26, 46, 0.06),
-      0 20px 36px -12px rgba(129, 140, 248, 0.28);
+      0 1px 0 rgb(var(--color-highlight) / 0.8) inset,
+      0 4px 10px rgb(var(--color-shadow) / 0.1),
+      0 20px 36px -12px rgb(var(--color-primary) / 0.28);
   }
 }
 .card-lift:active {
@@ -89,23 +149,23 @@ body {
   font-size: 1.05rem;
   flex-shrink: 0;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.75) inset,
-    0 3px 8px rgba(26, 26, 46, 0.10);
+    0 1px 0 rgb(var(--color-highlight) / 0.75) inset,
+    0 3px 8px rgb(var(--color-shadow) / 0.14);
 }
 
 .input {
   width: 100%;
-  border: 1px solid #e5e5e5;
+  border: 1px solid rgb(var(--color-border) / 0.14);
   border-radius: 0.5rem;
   padding: 0.5rem 0.75rem;
   font-size: 0.9rem;
-  color: #1a1a2e;
-  background: #fff;
+  color: rgb(var(--color-text-primary));
+  background: rgb(var(--color-surface-elevated));
 }
 .input:focus {
   outline: none;
-  border-color: #818cf8;
-  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.15);
+  border-color: rgb(var(--color-focus-ring));
+  box-shadow: 0 0 0 3px rgb(var(--color-focus-ring) / 0.15);
 }
 
 /* Slim, unobtrusive scrollbar for the horizontal Daily Scores sliders. */
@@ -132,11 +192,11 @@ body {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(ellipse 80% 60% at 15% 0%, rgba(110, 231, 183, 0.28), transparent 60%),
-    radial-gradient(ellipse 70% 55% at 100% 10%, rgba(129, 140, 248, 0.24), transparent 60%),
-    radial-gradient(ellipse 75% 60% at 90% 100%, rgba(251, 113, 133, 0.20), transparent 60%),
-    radial-gradient(ellipse 70% 55% at 5% 95%, rgba(56, 189, 248, 0.22), transparent 60%),
-    #fafafa;
+    radial-gradient(ellipse 80% 60% at 15% 0%, rgb(var(--color-mint) / 0.28), transparent 60%),
+    radial-gradient(ellipse 70% 55% at 100% 10%, rgb(var(--color-primary) / 0.24), transparent 60%),
+    radial-gradient(ellipse 75% 60% at 90% 100%, rgb(var(--color-danger) / 0.2), transparent 60%),
+    radial-gradient(ellipse 70% 55% at 5% 95%, rgb(var(--color-blue) / 0.22), transparent 60%),
+    rgb(var(--color-bg));
 }
 .bubble-page-bg--full { min-height: 100svh; }
 
@@ -177,46 +237,56 @@ body {
    elevation + an inner top highlight that "catches the light". */
 .bubble-card {
   position: relative;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(255, 255, 255, 0.99));
+  background: linear-gradient(180deg, rgb(var(--color-surface-elevated) / 0.97), rgb(var(--color-surface-elevated) / 0.99));
   border-radius: 1.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  border: 1px solid rgb(var(--color-highlight) / 0.8);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 30px 60px -20px rgba(129, 140, 248, 0.35),
-    0 12px 28px -12px rgba(26, 26, 46, 0.18);
+    0 1px 0 rgb(var(--color-highlight) / 0.9) inset,
+    0 30px 60px -20px rgb(var(--color-primary) / 0.35),
+    0 12px 28px -12px rgb(var(--color-shadow) / 0.22);
 }
 
 .bubble-heading {
   font-family: 'Fredoka', 'Inter', system-ui, sans-serif;
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: #1a1a2e;
+  color: rgb(var(--color-text-primary));
   text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9),
-    0 2px 0 rgba(129, 140, 248, 0.15),
-    0 4px 10px rgba(129, 140, 248, 0.18);
+    0 1px 0 rgb(var(--color-highlight) / 0.9),
+    0 2px 0 rgb(var(--color-primary) / 0.15),
+    0 4px 10px rgb(var(--color-primary) / 0.18);
 }
+
+/**
+ * Accent-color variant for bubble-heading — later tab redesigns can pass a
+ * different brand token (e.g. `text-mint`, `text-blue`) as the accent
+ * without losing the dimensional text-shadow treatment.
+ */
+.bubble-heading--accent-mint { text-shadow: 0 1px 0 rgb(var(--color-highlight) / 0.9), 0 2px 0 rgb(var(--color-mint) / 0.2), 0 4px 10px rgb(var(--color-mint) / 0.2); }
+.bubble-heading--accent-blue { text-shadow: 0 1px 0 rgb(var(--color-highlight) / 0.9), 0 2px 0 rgb(var(--color-blue) / 0.2), 0 4px 10px rgb(var(--color-blue) / 0.2); }
+.bubble-heading--accent-peach { text-shadow: 0 1px 0 rgb(var(--color-highlight) / 0.9), 0 2px 0 rgb(var(--color-peach) / 0.25), 0 4px 10px rgb(var(--color-peach) / 0.22); }
+.bubble-heading--accent-lavender { text-shadow: 0 1px 0 rgb(var(--color-highlight) / 0.9), 0 2px 0 rgb(var(--color-lavender) / 0.22), 0 4px 10px rgb(var(--color-lavender) / 0.2); }
 
 .input-bubble {
   width: 100%;
-  border: 1px solid #ececf3;
+  border: 1px solid rgb(var(--color-border) / 0.12);
   border-radius: 1rem;
   padding: 0.7rem 1rem;
   font-size: 0.95rem;
-  color: #1a1a2e;
-  background: #f8f8fc;
-  box-shadow: inset 0 2px 5px rgba(26, 26, 46, 0.06), inset 0 1px 2px rgba(26, 26, 46, 0.04);
+  color: rgb(var(--color-text-primary));
+  background: rgb(var(--color-surface-interactive));
+  box-shadow: inset 0 2px 5px rgb(var(--color-shadow) / 0.06), inset 0 1px 2px rgb(var(--color-shadow) / 0.04);
   transition: box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 .input-bubble:focus {
   outline: none;
-  border-color: #818cf8;
-  background: #fff;
-  box-shadow: inset 0 2px 5px rgba(26, 26, 46, 0.05), 0 0 0 4px rgba(129, 140, 248, 0.18);
+  border-color: rgb(var(--color-focus-ring));
+  background: rgb(var(--color-surface-elevated));
+  box-shadow: inset 0 2px 5px rgb(var(--color-shadow) / 0.05), 0 0 0 4px rgb(var(--color-focus-ring) / 0.18);
 }
 .input-bubble:-webkit-autofill {
-  -webkit-text-fill-color: #1a1a2e;
-  -webkit-box-shadow: 0 0 0 1000px #f8f8fc inset;
+  -webkit-text-fill-color: rgb(var(--color-text-primary));
+  -webkit-box-shadow: 0 0 0 1000px rgb(var(--color-surface-interactive)) inset;
   transition: background-color 9999s ease-in-out 0s;
 }
 
@@ -254,13 +324,131 @@ body {
     0 4px 12px -6px rgba(129, 140, 248, 0.5);
 }
 .btn-bubble:focus-visible {
-  outline: 3px solid #38bdf8;
+  outline: 3px solid rgb(var(--color-focus-ring));
   outline-offset: 3px;
 }
 .btn-bubble:disabled {
   filter: saturate(0.7);
   opacity: 0.75;
   cursor: default;
+}
+
+/* Secondary button: outlined, surface-colored — for "Cancel"/lower-emphasis
+   actions next to a .btn-bubble primary action. */
+.btn-secondary {
+  border-radius: 999px;
+  font-weight: 600;
+  background: rgb(var(--color-surface-elevated));
+  color: rgb(var(--color-text-primary));
+  border: 1px solid rgb(var(--color-border) / 0.16);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+@media (hover: hover) {
+  .btn-secondary:hover:not(:disabled) {
+    background: rgb(var(--color-surface-soft));
+  }
+}
+.btn-secondary:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.btn-secondary:focus-visible {
+  outline: 3px solid rgb(var(--color-focus-ring));
+  outline-offset: 2px;
+}
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Destructive button: same pill shape, danger-token colored — account
+   suspension, deleting a goal, etc. */
+.btn-destructive {
+  border-radius: 999px;
+  font-weight: 600;
+  background: rgb(var(--color-danger));
+  color: white;
+  box-shadow: 0 8px 20px -8px rgb(var(--color-danger) / 0.5);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+@media (hover: hover) {
+  .btn-destructive:hover:not(:disabled) {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+  }
+}
+.btn-destructive:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.btn-destructive:focus-visible {
+  outline: 3px solid rgb(var(--color-danger));
+  outline-offset: 2px;
+}
+.btn-destructive:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Loading skeleton — a soft shimmer between the soft/interactive surface
+   tones, never a jarring pure-grey block. Disabled under reduced motion
+   (see bottom of file), where it just sits at a flat mid-tone. */
+.skeleton {
+  border-radius: 0.75rem;
+  background: linear-gradient(
+    100deg,
+    rgb(var(--color-surface-soft)) 30%,
+    rgb(var(--color-surface-interactive)) 50%,
+    rgb(var(--color-surface-soft)) 70%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Progress indicator — track + fill, used by goal/challenge progress bars. */
+.progress-track {
+  width: 100%;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: rgb(var(--color-surface-soft));
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Compact segmented control used by ThemeToggle (Light/Dark/System). */
+.segmented-control {
+  display: inline-flex;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: rgb(var(--color-surface-soft));
+  border: 1px solid rgb(var(--color-border) / 0.08);
+  gap: 0.125rem;
+}
+.segmented-control__option {
+  border-radius: 999px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgb(var(--color-text-muted));
+  transition: background-color 0.18s ease, color 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.segmented-control__option[aria-pressed='true'] {
+  background: rgb(var(--color-surface-elevated));
+  color: rgb(var(--color-text-primary));
+  box-shadow: 0 2px 6px rgb(var(--color-shadow) / 0.12);
+}
+.segmented-control__option:focus-visible {
+  outline: 2px solid rgb(var(--color-focus-ring));
+  outline-offset: 2px;
 }
 
 /* Gentle fade-and-rise entrance, with optional stagger — used for card/page
@@ -293,7 +481,8 @@ body {
   .bubble-blob,
   .bubble-sparkle,
   .rise-in,
-  .page-fade-enter {
+  .page-fade-enter,
+  .skeleton {
     animation: none !important;
   }
   .rise-in,
@@ -301,13 +490,21 @@ body {
     opacity: 1;
     transform: none;
   }
+  .skeleton {
+    background: rgb(var(--color-surface-soft));
+  }
   .card-lift:hover {
     transform: none;
   }
   .btn-bubble,
   .btn-bubble:hover:not(:disabled),
-  .btn-bubble:active:not(:disabled) {
+  .btn-bubble:active:not(:disabled),
+  .btn-secondary:hover:not(:disabled),
+  .btn-destructive:hover:not(:disabled) {
     transition: none;
     transform: none;
+  }
+  .progress-fill {
+    transition: none;
   }
 }

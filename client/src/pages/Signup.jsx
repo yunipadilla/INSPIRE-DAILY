@@ -99,7 +99,7 @@ export default function Signup() {
         <AuthLayout>
           <h1 className="text-xl font-bold text-navy mb-3">Almost there!</h1>
           <p className="text-navy/80">{result.message}</p>
-          <Link to="/login" className="inline-block mt-6 text-sm font-semibold text-[#38bdf8]">
+          <Link to="/login" className="inline-block mt-6 text-sm font-semibold text-blue">
             Back to login
           </Link>
         </AuthLayout>
@@ -161,7 +161,7 @@ export default function Signup() {
               <label
                 key={r.value}
                 className={`border rounded-lg px-3 py-2 text-sm text-center cursor-pointer ${
-                  form.appRole === r.value ? 'border-[#818cf8] bg-[#818cf8]/10 font-semibold' : 'border-[#e5e5e5]'
+                  form.appRole === r.value ? 'border-primary bg-primary/10 font-semibold' : 'border-border/20'
                 }`}
               >
                 <input
@@ -195,7 +195,11 @@ export default function Signup() {
           Send me a Quote of the Day
         </label>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-danger">
+            {error}
+          </p>
+        )}
 
         <button
           type="submit"
@@ -207,7 +211,7 @@ export default function Signup() {
       </form>
       <p className="text-sm text-navy/60 text-center mt-4">
         Already have an account?{' '}
-        <Link to="/login" className="font-semibold text-[#38bdf8]">
+        <Link to="/login" className="font-semibold text-blue">
           Log in
         </Link>
       </p>
@@ -220,7 +224,7 @@ function Field({ label, required, hint, children }) {
     <div>
       <label className="block text-sm font-medium text-navy mb-1">
         {label}
-        {required && <span className="text-rose-400"> *</span>}
+        {required && <span className="text-danger"> *</span>}
       </label>
       {children}
       {hint && <p className="text-xs text-navy/50 mt-1">{hint}</p>}

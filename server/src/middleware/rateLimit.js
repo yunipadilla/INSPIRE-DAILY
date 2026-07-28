@@ -21,3 +21,15 @@ export const signupLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many signup attempts from this device. Please try again later.' },
 });
+
+// Covers both /forgot-password (enumeration-sensitive — keep this generous
+// enough that a legitimate user retrying a typo'd email doesn't get walled
+// off) and /reset-password (defense-in-depth; the token itself is already
+// cryptographically infeasible to guess within any rate limit).
+export const passwordResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please wait a few minutes and try again.' },
+});

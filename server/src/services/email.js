@@ -20,11 +20,21 @@ function getTransporter() {
  * would have been sent. This lets every real email-triggering flow (account
  * approval, parental consent, encouragement, monthly reports) be written
  * once, now, without needing a live email account to develop against.
+ *
+ * Pass `sensitive: true` for anything whose body carries a credential-like
+ * secret (a password-reset link, say) — the stub then logs only that an
+ * email would have been sent, never the body, so the raw secret is never
+ * written to any log, in any environment, regardless of whether SMTP is
+ * configured.
  */
-export async function sendEmail({ to, subject, html, text }) {
+export async function sendEmail({ to, subject, html, text, sensitive = false }) {
   const t = getTransporter();
   if (!t) {
-    console.log(`[email:stub] to=${to} subject="${subject}"\n${text || html}`);
+    if (sensitive) {
+      console.log(`[email:stub] to=${to} subject="${subject}" — body withheld (sensitive); configure SMTP to actually deliver it`);
+    } else {
+      console.log(`[email:stub] to=${to} subject="${subject}"\n${text || html}`);
+    }
     return { sent: false, stubbed: true };
   }
   await t.sendMail({ from: env.smtp.from, to, subject, html, text });

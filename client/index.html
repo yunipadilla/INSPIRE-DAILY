@@ -4,6 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Inspire Daily</title>
+    <meta name="theme-color" content="#faf7f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#12121c" media="(prefers-color-scheme: dark)" />
+    <script>
+      // Resolves and applies the theme BEFORE the app paints, so there is
+      // never a flash of the wrong theme on load. Kept intentionally tiny
+      // and dependency-free — this runs before React (or anything else) has
+      // loaded. ThemeContext (src/context/ThemeContext.jsx) re-derives the
+      // same resolution afterward and keeps everything in sync from then on.
+      (function () {
+        try {
+          var STORAGE_KEY = 'inspire-theme-preference';
+          var stored = localStorage.getItem(STORAGE_KEY);
+          var preference = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+          var systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var isDark = preference === 'dark' || (preference === 'system' && systemDark);
+          document.documentElement.classList.toggle('dark', isDark);
+          document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+        } catch (e) {
+          // localStorage/matchMedia unavailable (private mode, very old
+          // browser) — fall back to the light default already in the CSS.
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

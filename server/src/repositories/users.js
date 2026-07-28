@@ -1,12 +1,16 @@
 import { query } from '../db.js';
 import { ACCOUNT_STATUS } from '../config/accountStatus.js';
 
+// NOTE: password_changed_at and theme_preference don't exist in the live
+// database until their migration is applied and approved (see the reviewed
+// SQL) — every query below that uses PUBLIC_COLUMNS will error until then.
+// This mirrors exactly how system_role was added earlier in this project.
 const PUBLIC_COLUMNS = `
   id, email, first_name, last_name, birthday, phone, profile_photo_url,
   app_role, account_status, system_role, quote_of_day, parental_consent_required,
   parental_consent_status, streak_count, streak_shields, streak_last_date,
   streak_recovery_available_until, streak_recovery_prior_count,
-  created_at, approved_at
+  created_at, approved_at, password_changed_at, theme_preference
 `;
 
 export async function findByEmail(email) {
@@ -73,6 +77,35 @@ export async function suspendUser(id) {
   return rows[0];
 }
 
+/**
+ * Sets a new password hash and stamps password_changed_at. That stamp is
+ * what invalidates every previously-issued JWT (see middleware/auth.js) —
+ * this function only ever touches password_hash/password_changed_at, never
+ * app_role/system_role/account_status, so a password reset can never be
+ * exploited to change what an account is allowed to do.
+ *
+ * Takes a `client` (from withTransaction) — this must commit-or-rollback
+ * together with the reset token's used_at update (see
+ * repositories/passwordResetTokens.js claimResetToken and routes/auth.js),
+ * so a token can never be consumed without the password having actually
+ * changed.
+ */
+export async function updatePasswordHash(client, id, passwordHash) {
+  const { rows } = await client.query(
+    `update users set password_hash = $2, password_changed_at = now() where id = $1 returning ${PUBLIC_COLUMNS}`,
+    [id, passwordHash]
+  );
+  return rows[0];
+}
+
+export async function updateThemePreference(id, themePreference) {
+  const { rows } = await query(
+    `update users set theme_preference = $2 where id = $1 returning ${PUBLIC_COLUMNS}`,
+    [id, themePreference]
+  );
+  return rows[0];
+}
+
 export async function confirmParentalConsentByToken(token) {
   const { rows } = await query(
     `update users
@@ -123,6 +156,7 @@ export function toClientUser(user) {
     streakRecoveryPriorCount: user.streak_recovery_prior_count,
     createdAt: user.created_at,
     approvedAt: user.approved_at,
+    themePreference: user.theme_preference,
   };
 }
 

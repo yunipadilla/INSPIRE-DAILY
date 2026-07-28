@@ -1,8 +1,12 @@
 import InspireLogo from './InspireLogo';
+import ThemeToggle from './ui/ThemeToggle';
 
 export default function AuthLayout({ children }) {
   return (
-    <div className="min-h-screen bg-appbg flex flex-col items-center justify-center px-4 py-10">
+    <div className="min-h-screen bg-appbg flex flex-col items-center justify-center px-4 py-10 relative">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <div className="mb-8">
         <InspireLogo size={44} />
       </div>

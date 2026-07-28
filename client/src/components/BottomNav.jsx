@@ -21,7 +21,7 @@ export default function BottomNav({ appRole }) {
   const tabs = TABS.filter((t) => !t.hideForRoles?.includes(appRole));
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#eee] flex justify-around items-center h-[72px] z-40 px-1">
+    <nav className="fixed bottom-0 left-0 right-0 bg-surface-elevated border-t border-border/10 flex justify-around items-center h-[72px] z-40 px-1">
       {tabs.map(({ to, end, label, icon: Icon, activeColor, activeBg }) => (
         <NavLink key={to} to={to} end={end} className="flex-1 h-full flex items-center justify-center">
           {({ isActive }) => (
@@ -33,10 +33,10 @@ export default function BottomNav({ appRole }) {
                 height: '52px',
               }}
             >
-              <Icon size={20} color={isActive ? activeColor : '#9ca3af'} strokeWidth={isActive ? 2.5 : 2} />
+              <Icon size={20} color={isActive ? activeColor : 'rgb(var(--color-text-muted))'} strokeWidth={isActive ? 2.5 : 2} />
               <span
                 className="text-[10px] font-semibold"
-                style={{ color: isActive ? activeColor : '#9ca3af' }}
+                style={{ color: isActive ? activeColor : 'rgb(var(--color-text-muted))' }}
               >
                 {label}
               </span>

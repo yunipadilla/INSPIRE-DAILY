@@ -42,8 +42,18 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const forgotPassword = useCallback(async (email) => {
+    return apiFetch('/auth/forgot-password', { method: 'POST', body: { email } });
+  }, []);
+
+  const resetPassword = useCallback(async (token, password) => {
+    return apiFetch('/auth/reset-password', { method: 'POST', body: { token, password } });
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, refresh }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, signup, logout, refresh, forgotPassword, resetPassword }}
+    >
       {children}
     </AuthContext.Provider>
   );

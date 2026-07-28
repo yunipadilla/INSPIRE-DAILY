@@ -16,6 +16,21 @@ export async function requireAuth(req, res, next) {
     const payload = verifyToken(token);
     const user = await findById(payload.sub);
     if (!user) return res.status(401).json({ error: 'Not authenticated.' });
+
+    // Session invalidation for a stateless JWT: rather than maintaining a
+    // token blacklist, every token carries an `iat` (issued-at) claim. If
+    // the account's password has been changed more recently than this token
+    // was issued, the token predates the reset and is treated as no longer
+    // valid — this is what makes "existing sessions are invalidated" true
+    // for a password reset, on every device, without extra storage.
+    if (user.password_changed_at) {
+      const changedAtMs = new Date(user.password_changed_at).getTime();
+      const tokenIssuedMs = payload.iat * 1000;
+      if (tokenIssuedMs < changedAtMs) {
+        return res.status(401).json({ error: 'Your session has expired. Please log in again.' });
+      }
+    }
+
     if (!isActive(user.account_status)) {
       return res.status(403).json({
         error: isPending(user.account_status)

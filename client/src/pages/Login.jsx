@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import InspireLogo from '../components/InspireLogo';
 import BubbleBackground from '../components/BubbleBackground';
 import PasswordField from '../components/auth/PasswordField';
+import ThemeToggle from '../components/ui/ThemeToggle';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
@@ -31,6 +32,9 @@ export default function Login() {
   return (
     <div className="bubble-page-bg bubble-page-bg--full flex flex-col items-center justify-center px-4 py-10">
       <BubbleBackground />
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeToggle />
+      </div>
 
       <div className="relative z-10 w-full max-w-md flex flex-col items-center">
         <div className="rise-in stagger-1 mb-6">
@@ -63,10 +67,15 @@ export default function Login() {
 
             <div className="rise-in stagger-3">
               <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+              <div className="text-right mt-1.5">
+                <Link to="/forgot-password" className="text-xs font-semibold text-blue hover:opacity-80 transition-opacity">
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             {error && (
-              <p role="alert" className="text-sm text-rose-500 rise-in">
+              <p role="alert" className="text-sm text-danger rise-in">
                 {error}
               </p>
             )}
@@ -84,7 +93,7 @@ export default function Login() {
 
           <p className="rise-in stagger-4 text-sm text-navy/55 text-center mt-6">
             Don't have an account?{' '}
-            <Link to="/signup" className="font-semibold text-[#38bdf8] hover:text-[#0ea5e9] transition-colors">
+            <Link to="/signup" className="font-semibold text-blue hover:opacity-80 transition-opacity">
               Sign up
             </Link>
           </p>
