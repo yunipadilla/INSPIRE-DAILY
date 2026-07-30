@@ -13,6 +13,7 @@ import profileRoutes from './routes/profile.js';
 import goalsRoutes from './routes/goals.js';
 import summerChallengeRoutes from './routes/summerChallenge.js';
 import internshipTasksRoutes from './routes/internshipTasks.js';
+import hqRoutes from './routes/hq/index.js';
 import { scheduleDailyScoresAgent } from './agents/dailyScoresAgent.js';
 import { scheduleHomeAgent } from './agents/homeAgent.js';
 import { scheduleGoalsAgent } from './agents/goalsAgent.js';
@@ -43,6 +44,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/goals', goalsRoutes);
 app.use('/api/summer-challenge', summerChallengeRoutes);
 app.use('/api/tasks', internshipTasksRoutes);
+app.use('/api/hq', hqRoutes);
 
 // Serve the built React app (client/dist) from this same server in production,
 // so the whole app lives on one origin — no separate frontend host, no CORS/

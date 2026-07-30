@@ -44,7 +44,7 @@ router.get('/', requireAuth, async (req, res) => {
       skills: badgesRes.rows.filter((b) => b.badge_type === 'skills'),
       milestones: badgesRes.rows.filter((b) => b.badge_type === 'milestone'),
     },
-    isStaff: req.user.app_role === 'staff',
+    hasHQAccess: ['staff', 'admin', 'super_admin'].includes(req.user.system_role),
   });
 });
 

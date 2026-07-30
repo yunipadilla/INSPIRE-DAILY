@@ -20,6 +20,11 @@ import NewFitnessGoal from './pages/app/goals/NewFitnessGoal';
 import NewLearningGoal from './pages/app/goals/NewLearningGoal';
 import NewMeditationGoal from './pages/app/goals/NewMeditationGoal';
 import NewCustomGoal from './pages/app/goals/NewCustomGoal';
+import RequireHQAccess from './components/hq/RequireHQAccess';
+import HQShell from './components/hq/HQShell';
+import HQOverview from './pages/hq/Overview';
+import HQMembers from './pages/hq/Members';
+import HQMemberProfile from './pages/hq/MemberProfile';
 
 function RootRedirect() {
   const { user, loading } = useAuth();
@@ -55,6 +60,14 @@ export default function App() {
           <Route path="/app/goals/new/learning" element={<NewLearningGoal />} />
           <Route path="/app/goals/new/meditation" element={<NewMeditationGoal />} />
           <Route path="/app/goals/new/custom" element={<NewCustomGoal />} />
+        </Route>
+
+        <Route element={<RequireHQAccess />}>
+          <Route path="/hq" element={<HQShell />}>
+            <Route index element={<HQOverview />} />
+            <Route path="members" element={<HQMembers />} />
+            <Route path="members/:id" element={<HQMemberProfile />} />
+          </Route>
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

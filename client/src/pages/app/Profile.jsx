@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import SectionHeader from '../../components/SectionHeader';
 
 const BADGE_CATEGORIES = [
@@ -33,7 +33,7 @@ export default function Profile() {
 
   if (!data) return <div className="py-10 text-center text-navy/50">Loading…</div>;
 
-  const { user, stats, badges, isStaff } = data;
+  const { user, stats, badges, hasHQAccess } = data;
   const statValues = [stats.streakCount, stats.badgesEarned, stats.goalsCompleted, stats.daysInProgram];
   const statLabels = ['Streak', 'Badges', 'Goals', 'Days'];
 
@@ -88,16 +88,16 @@ export default function Profile() {
         Log out
       </button>
 
-      {isStaff && (
+      {hasHQAccess && (
         <section>
           <SectionHeader icon="🧑‍💼" iconBg="#e0e7ff" title="Staff Tools" />
-          <a
-            href="/staff"
+          <Link
+            to="/hq"
             className="pressable card card-lift p-4 flex items-center justify-between gradient-rainbow text-white font-semibold shadow-md"
           >
-            Open Program Dashboard
+            Open Inspire HQ
             <span>→</span>
-          </a>
+          </Link>
         </section>
       )}
     </div>

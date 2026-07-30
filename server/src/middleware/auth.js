@@ -70,3 +70,33 @@ export function requireAtLeastRole(...roles) {
     next();
   };
 }
+
+/**
+ * Gates on `system_role` — the Inspire HQ authorization dimension, distinct
+ * from `app_role` (which governs participant-tier content in Inspire Daily
+ * and is left untouched here). Every public signup defaults to
+ * system_role='participant' and can never self-elevate (see
+ * PUBLIC_SIGNUP_APP_ROLES / users.js) — admin/super_admin are only ever
+ * granted by a deliberate, manual database action.
+ */
+export function requireSystemRole(...roles) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'Not authenticated.' });
+    if (!roles.includes(req.user.system_role)) {
+      return res.status(403).json({ error: 'You do not have access to this resource.' });
+    }
+    next();
+  };
+}
+
+/**
+ * Inspire HQ's route guard: staff, admin, and super_admin may enter.
+ * Participants are rejected here at the API layer regardless of whether the
+ * frontend also hides HQ navigation from them — the real boundary is this
+ * check, never hidden UI. Cohort-level scoping (a staff member seeing only
+ * their assigned cohort) is intentionally not implemented yet — it depends
+ * on the still-unapplied cohorts/staff_cohort_assignments migration, out of
+ * scope for this build phase. For now every staff/admin/super_admin account
+ * sees every member.
+ */
+export const requireHQAccess = requireSystemRole('staff', 'admin', 'super_admin');
