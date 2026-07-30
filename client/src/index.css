@@ -451,6 +451,30 @@ body {
   outline-offset: 2px;
 }
 
+/* DataTable row navigation (see components/ui/DataTable.jsx). A real <Link>
+   gets a clear focus-visible outline here — this is the actual accessible
+   control, native Tab/Enter, nothing custom. */
+.row-focus-link:focus-visible {
+  outline: 2px solid rgb(var(--color-focus-ring));
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+
+/* Desktop table only: this invisible ::after stretches the <Link>'s
+   clickable area to fill its containing <td> (which is `position:
+   relative`), so the whole first cell is a mouse target, not just the
+   text's own baseline box. Deliberately scoped to the <td>, not the <tr> —
+   `position: relative` on a table ROW is an unreliable containing block
+   for absolutely-positioned descendants across browsers (a real, verified
+   quirk of table layout), so the overlay does not attempt to cover the
+   entire row. Keyboard users are unaffected either way: Tab/Enter act on
+   the real <a> itself, regardless of the mouse hit-area's size. */
+.row-link-stretch::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
 /* Gentle fade-and-rise entrance, with optional stagger — used for card/page
    content appearing (Login form fields, a newly-mounted tab's sections). */
 .rise-in {

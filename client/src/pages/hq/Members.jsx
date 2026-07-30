@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
 import PageTitle from '../../components/ui/PageTitle';
 import FilterBar from '../../components/ui/FilterBar';
@@ -21,7 +20,6 @@ const STATUS_OPTIONS = [
 const PAGE_SIZE = 20;
 
 export default function Members() {
-  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [appRole, setAppRole] = useState('');
   const [accountStatus, setAccountStatus] = useState('');
@@ -96,7 +94,7 @@ export default function Members() {
           <DataTable
             columns={columns}
             rows={data.members}
-            onRowClick={(row) => navigate(`/hq/members/${row.id}`)}
+            getRowHref={(row) => `/hq/members/${row.id}`}
             emptyContent={<EmptyState icon="🔍" title="No members match" description="Try a different search or filter." />}
           />
 
