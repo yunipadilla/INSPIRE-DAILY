@@ -33,6 +33,17 @@ function ActionStatusPill({ status }) {
   return <span className="text-xs font-bold text-navy">Start →</span>;
 }
 
+const FOCUS_COPY = {
+  dailyScores: { title: "Log today's Daily Scores", sub: 'Takes about a minute.' },
+  summerChallenge: { title: "Log today's Summer Challenge entry", sub: 'Keep the streak going.' },
+  goals: { title: 'Check in on your goals', sub: "See what's next." },
+  internshipTasks: { title: 'Pick up an internship task', sub: "There's work waiting for you." },
+};
+
+function pickFocus(actions, todaysActions) {
+  return actions.find((a) => (todaysActions?.[a.key] || 'start') === 'start') || null;
+}
+
 export default function Home() {
   const { user } = useAuth();
   const location = useLocation();
@@ -48,6 +59,8 @@ export default function Home() {
   }, []);
 
   const actions = ACTION_CARDS.filter((a) => !a.hideForRoles?.includes(user?.appRole));
+  const focus = pickFocus(actions, summary?.todaysActions);
+  const rest = actions.filter((a) => a.key !== focus?.key);
 
   return (
     <div className="space-y-7">
@@ -84,31 +97,51 @@ export default function Home() {
       </div>
 
       <section>
-        <SectionHeader icon="⚡" iconBg="#fef3c7" title="Today's Actions" />
-        <div className="grid grid-cols-2 gap-3">
-          {actions.map((a) => (
-            <Link
-              key={a.key}
-              to={a.to}
-              className="pressable card card-lift p-4 flex flex-col justify-between h-28 overflow-hidden relative"
-              style={{ borderLeft: `4px solid ${a.accent}` }}
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className="icon-badge"
-                  style={{ background: a.bg }}
-                >
+        <SectionHeader icon="⚡" iconBg="#fef3c7" title="Today's Focus" />
+        {focus ? (
+          <Link
+            to={focus.to}
+            className="pressable card card-lift p-5 flex items-center gap-4 relative overflow-hidden rise-in"
+            style={{ borderLeft: `4px solid ${focus.accent}` }}
+          >
+            <span className="icon-badge flex-shrink-0" style={{ background: focus.bg, width: 48, height: 48, fontSize: '1.5rem' }}>
+              {focus.emoji}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-bold text-navy leading-tight">
+                {FOCUS_COPY[focus.key]?.title || focus.label}
+              </p>
+              <p className="text-sm text-navy/50 mt-0.5">{FOCUS_COPY[focus.key]?.sub}</p>
+            </div>
+            <span className="text-navy font-bold text-lg flex-shrink-0">→</span>
+          </Link>
+        ) : (
+          <div className="card p-5 flex items-center gap-4 gradient-rainbow text-white rise-in">
+            <span className="text-2xl">🎉</span>
+            <p className="text-sm font-semibold">You're all caught up for today. Nice work!</p>
+          </div>
+        )}
+
+        {rest.length > 0 && (
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            {rest.map((a) => (
+              <Link
+                key={a.key}
+                to={a.to}
+                className="pressable card p-3 flex flex-col items-center gap-1.5 text-center"
+              >
+                <span className="icon-badge" style={{ background: a.bg, width: 32, height: 32, fontSize: '1rem' }}>
                   {a.emoji}
                 </span>
-                <span className="text-sm font-semibold text-navy leading-tight">{a.label}</span>
-              </div>
-              <ActionStatusPill status={summary?.todaysActions?.[a.key] || 'start'} />
-            </Link>
-          ))}
-        </div>
+                <span className="text-[11px] font-semibold text-navy leading-tight">{a.label}</span>
+                <ActionStatusPill status={summary?.todaysActions?.[a.key] || 'start'} />
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
 
-      <section>
+      <section className="opacity-90">
         <SectionHeader icon="🎉" iconBg="#fce7f3" title="Celebration Feed" />
         <div className="card divide-y divide-[#f5f5f5] overflow-hidden">
           {feed.length === 0 && (
@@ -123,7 +156,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section>
+      <section className="opacity-90">
         <SectionHeader icon="🏆" iconBg="#e0e7ff" title="Leaderboard" />
         {leaderboard?.guestNote && <p className="text-xs text-navy/50 mb-2">{leaderboard.guestNote}</p>}
         <div className="card divide-y divide-[#f5f5f5] overflow-hidden">

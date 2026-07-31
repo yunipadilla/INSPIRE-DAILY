@@ -6,6 +6,7 @@ import MyTaskCard from '../../components/tasks/MyTaskCard';
 import StaffPostTask from '../../components/tasks/StaffPostTask';
 import StaffTaskHub from '../../components/tasks/StaffTaskHub';
 import SectionHeader from '../../components/SectionHeader';
+import GoalCelebration from '../../components/goals/GoalCelebration';
 
 export default function InternshipTasks() {
   const { user } = useAuth();
@@ -13,6 +14,7 @@ export default function InternshipTasks() {
   const [mySignups, setMySignups] = useState(null);
   const [hub, setHub] = useState(null);
   const [signingUpId, setSigningUpId] = useState(null);
+  const [celebration, setCelebration] = useState(null);
 
   const isStaff = user?.appRole === 'staff';
 
@@ -47,6 +49,7 @@ export default function InternshipTasks() {
       body: { status: 'completed', hoursSpent, notes },
     });
     await refreshAll();
+    setCelebration('Task completed — nice work! 🎉');
   }
 
   async function handlePostTask(payload) {
@@ -97,6 +100,8 @@ export default function InternshipTasks() {
           <StaffTaskHub signups={hub} />
         </section>
       )}
+
+      {celebration && <GoalCelebration message={celebration} onClose={() => setCelebration(null)} />}
     </div>
   );
 }

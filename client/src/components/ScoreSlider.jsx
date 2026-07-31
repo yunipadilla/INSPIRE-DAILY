@@ -1,12 +1,18 @@
 import { AnimatePresence, motion } from 'framer-motion';
 
+function adaptiveLabel(value, lowLabel, highLabel) {
+  if (value <= 3) return lowLabel;
+  if (value >= 8) return highLabel;
+  return 'Somewhere in the middle';
+}
+
 export default function ScoreSlider({ label, question, lowLabel, highLabel, value, onChange }) {
   const pct = ((value - 1) / 9) * 100;
 
   return (
-    <div className="card p-4">
+    <div className="card p-5">
       <p className="text-xs font-bold uppercase tracking-wide text-navy/50">{label}</p>
-      <p className="text-sm font-medium text-navy mt-1 mb-6">{question}</p>
+      <p className="text-sm font-medium text-navy mt-1 mb-7">{question}</p>
 
       <div className="relative">
         <div className="absolute -top-9 flex justify-center" style={{ left: `calc(${pct}% - 20px)`, width: 40 }}>
@@ -34,10 +40,23 @@ export default function ScoreSlider({ label, question, lowLabel, highLabel, valu
         />
       </div>
 
-      <div className="flex justify-between text-xs text-navy/40 mt-1">
+      <div className="flex justify-between text-xs text-navy/40 mt-1.5">
         <span>1 — {lowLabel}</span>
         <span>10 — {highLabel}</span>
       </div>
+
+      <AnimatePresence mode="wait">
+        <motion.p
+          key={adaptiveLabel(value, lowLabel, highLabel)}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="text-center text-xs font-semibold text-[#3b82f6] mt-2"
+        >
+          {adaptiveLabel(value, lowLabel, highLabel)}
+        </motion.p>
+      </AnimatePresence>
     </div>
   );
 }

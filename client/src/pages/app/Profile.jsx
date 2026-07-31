@@ -8,6 +8,7 @@ const BADGE_CATEGORIES = [
   { key: 'icf_events', label: 'ICF Events' },
   { key: 'staff_awards', label: 'Staff Awards' },
   { key: 'skills', label: 'Skills' },
+  { key: 'milestones', label: 'Milestones' },
 ];
 
 const STAT_STYLES = [
@@ -36,22 +37,25 @@ export default function Profile() {
   const { user, stats, badges, hasHQAccess } = data;
   const statValues = [stats.streakCount, stats.badgesEarned, stats.goalsCompleted, stats.daysInProgram];
   const statLabels = ['Streak', 'Badges', 'Goals', 'Days'];
+  const totalBadges = Object.values(badges).reduce((sum, arr) => sum + arr.length, 0);
 
   return (
     <div className="py-4 space-y-6">
-      <div className="flex flex-col items-center text-center gap-2">
-        <div className="w-20 h-20 rounded-full gradient-rainbow flex items-center justify-center text-2xl font-bold text-white overflow-hidden shadow-md">
-          {user.profilePhotoUrl ? (
-            <img src={user.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
-          ) : (
-            `${user.firstName[0]}${user.lastName[0]}`
-          )}
+      <div className="card p-6 gradient-rainbow relative overflow-hidden">
+        <div className="relative z-10 flex flex-col items-center text-center gap-2">
+          <div className="w-24 h-24 rounded-full bg-white/20 ring-4 ring-white/40 flex items-center justify-center text-3xl font-bold text-white overflow-hidden shadow-md">
+            {user.profilePhotoUrl ? (
+              <img src={user.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              `${user.firstName[0]}${user.lastName[0]}`
+            )}
+          </div>
+          <h1 className="text-xl font-bold text-white drop-shadow-sm">{user.fullName}</h1>
+          <span className="text-[10px] font-bold uppercase px-3 py-1 rounded-full bg-white/25 text-white">
+            {user.appRole}
+          </span>
+          <p className="text-xs text-white/80">{stats.daysInProgram} days in the program</p>
         </div>
-        <h1 className="text-lg font-bold text-navy">{user.fullName}</h1>
-        <span className="text-[10px] font-bold uppercase px-3 py-1 rounded-full bg-gray-100 text-navy/70">
-          {user.appRole}
-        </span>
-        <p className="text-xs text-navy/50">{stats.daysInProgram} days in the program</p>
       </div>
 
       <div className="grid grid-cols-4 gap-2 text-center">
@@ -61,11 +65,13 @@ export default function Profile() {
       </div>
 
       <section>
-        <SectionHeader icon="🏅" iconBg="#eef2ff" title="Badge Wall" />
+        <SectionHeader icon="🏅" iconBg="#eef2ff" title="Badge Wall" action={<span className="text-xs font-semibold text-navy/50">{totalBadges} earned</span>} />
         <div className="card p-4 space-y-4">
           {BADGE_CATEGORIES.map((cat) => (
             <div key={cat.key}>
-              <h3 className="text-xs font-semibold text-navy/60 mb-2">{cat.label}</h3>
+              <h3 className="text-xs font-semibold text-navy/60 mb-2">
+                {cat.label} {badges[cat.key].length > 0 && <span className="text-navy/30">({badges[cat.key].length})</span>}
+              </h3>
               <div className="flex gap-2 flex-wrap">
                 {(badges[cat.key].length ? badges[cat.key] : [null, null, null]).map((b, i) => (
                   <div
@@ -81,6 +87,20 @@ export default function Profile() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section>
+        <SectionHeader icon="✅" iconBg="#ecfdf5" title="Completed Achievements" />
+        <div className="card p-4 grid grid-cols-2 divide-x divide-[#f5f5f5] text-center">
+          <div>
+            <div className="text-2xl font-extrabold text-navy">{stats.goalsCompleted}</div>
+            <div className="text-[10px] uppercase text-navy/50 font-semibold">Goals completed</div>
+          </div>
+          <div>
+            <div className="text-2xl font-extrabold text-navy">{stats.tasksCompleted}</div>
+            <div className="text-[10px] uppercase text-navy/50 font-semibold">Tasks completed</div>
+          </div>
         </div>
       </section>
 

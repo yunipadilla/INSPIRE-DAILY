@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { dailyScoreSchema } from '../lib/validators.js';
-import { ptDateString, ptDayOfWeek, isSundayPT, deadlineLabelFor } from '../config/pacificTime.js';
+import { ptDateString, ptDayOfWeek, isSundayPT, isBeforeNoonPT, addDays, deadlineLabelFor } from '../config/pacificTime.js';
 import {
   findByUserAndDate,
   listDatesForUser,
@@ -13,13 +13,33 @@ import { postCelebration } from '../repositories/celebrationFeed.js';
 
 const router = Router();
 
-router.get('/today', requireAuth, async (req, res) => {
+/**
+ * Which date a submission right now is actually "for". Mirrors streakEngine's
+ * own grace window: before noon PT, if yesterday (a non-Sunday) is still
+ * unsubmitted and today hasn't been submitted either, the user is filling in
+ * yesterday's late entry, not starting today's. Otherwise it's today's.
+ */
+async function resolveSubmissionDate(userId) {
   const today = ptDateString();
+  const yesterday = addDays(today, -1);
+  if (isBeforeNoonPT() && ptDayOfWeek(yesterday) !== 0) {
+    const [todayRecord, yesterdayRecord] = await Promise.all([
+      findByUserAndDate(userId, today),
+      findByUserAndDate(userId, yesterday),
+    ]);
+    if (!todayRecord && !yesterdayRecord) return { date: yesterday, isLate: true };
+  }
+  return { date: today, isLate: false };
+}
+
+router.get('/today', requireAuth, async (req, res) => {
   const sunday = isSundayPT();
-  const existing = sunday ? null : await findByUserAndDate(req.user.id, today);
+  const { date, isLate } = sunday ? { date: ptDateString(), isLate: false } : await resolveSubmissionDate(req.user.id);
+  const existing = sunday ? null : await findByUserAndDate(req.user.id, date);
   res.json({
-    date: today,
+    date,
     isSunday: sunday,
+    isLate,
     alreadySubmitted: Boolean(existing),
     existing: existing
       ? {
@@ -38,43 +58,43 @@ router.get('/today', requireAuth, async (req, res) => {
       : null,
     streakCount: req.user.streak_count,
     streakShields: req.user.streak_shields,
-    deadlineLabel: deadlineLabelFor(today),
+    deadlineLabel: deadlineLabelFor(date),
   });
 });
 
 router.post('/', requireAuth, async (req, res) => {
-  const today = ptDateString();
-
   if (isSundayPT()) {
     return res.status(400).json({
       error: 'Today is Sunday — your rest day. Daily Scores are not required today.',
     });
   }
 
+  const { date: targetDate } = await resolveSubmissionDate(req.user.id);
+
   const parsed = dailyScoreSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid submission.' });
   }
 
-  const existing = await findByUserAndDate(req.user.id, today);
+  const existing = await findByUserAndDate(req.user.id, targetDate);
   if (existing) {
     return res.status(409).json({ error: 'You have already submitted your Daily Scores for today.' });
   }
 
-  const record = await insertDailyScore(req.user.id, today, parsed.data);
+  const record = await insertDailyScore(req.user.id, targetDate, parsed.data);
 
   const priorDates = await listDatesForUser(req.user.id);
   const { streakCount, streakShields, earnedShield } = applySubmission({
     streakCount: req.user.streak_count,
     streakShields: req.user.streak_shields,
     submittedDates: priorDates,
-    dateJustSubmitted: today,
+    dateJustSubmitted: targetDate,
   });
 
   await updateStreakFields(req.user.id, {
     streak_count: streakCount,
     streak_shields: streakShields,
-    streak_last_date: today,
+    streak_last_date: targetDate,
   });
 
   if (earnedShield) {

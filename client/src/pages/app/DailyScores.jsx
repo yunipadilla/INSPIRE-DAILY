@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import ScoreSlider from '../../components/ScoreSlider';
+import GoalCelebration from '../../components/goals/GoalCelebration';
 import { apiFetch } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
-import { ptDateStringNow } from '../../lib/pacificTime';
+import { formatDateLabel } from '../../lib/pacificTime';
 
 const QUESTIONS = [
   { key: 'bestSelf', label: 'Best Self', question: 'How close were you to your best self today?', low: 'Worst Self', high: 'Best Self' },
@@ -26,13 +27,12 @@ export default function DailyScores() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
     apiFetch('/daily-scores/today').then(setToday);
     if (user) setDisplayName(user.fullName);
   }, [user]);
-
-  const total = Object.values(sliders).reduce((a, b) => a + b, 0);
 
   async function handleSubmit() {
     setError('');
@@ -54,6 +54,7 @@ export default function DailyScores() {
         },
       });
       setResult(data);
+      setShowCelebration(true);
     } catch (err) {
       setError(err.data?.error || err.message);
     } finally {
@@ -85,9 +86,11 @@ export default function DailyScores() {
     return (
       <div className="py-4 space-y-4">
         <Header />
-        <div className="card p-6 text-center space-y-2">
-          <div className="text-3xl">✅</div>
-          <h1 className="text-lg font-bold text-navy">Daily Scores submitted for today!</h1>
+        <div className="card p-7 text-center space-y-2.5 gradient-daily-scores">
+          <div className="text-4xl">✅</div>
+          <h1 className="text-lg font-bold text-navy">
+            Daily Scores submitted for {formatDateLabel(today.date)}!
+          </h1>
           <p className="text-navy/60 text-sm">
             Total score: {result?.totalScore ?? today.existing?.totalScore} / 50
           </p>
@@ -95,6 +98,16 @@ export default function DailyScores() {
             <p className="text-sm font-semibold text-emerald-600">🛡️ You earned a new streak shield!</p>
           )}
         </div>
+        {showCelebration && (
+          <GoalCelebration
+            message={
+              result?.earnedShield
+                ? `${streakCount}-day streak — you earned a shield! 🛡️`
+                : `Daily Scores submitted! ${streakCount}-day streak 🔥`
+            }
+            onClose={() => setShowCelebration(false)}
+          />
+        )}
       </div>
     );
   }
@@ -102,6 +115,16 @@ export default function DailyScores() {
   return (
     <div className="py-4 space-y-5">
       <Header />
+
+      {today.isLate && (
+        <div className="rounded-xl bg-[#fff7ed] border border-[#fed7aa] p-3 text-sm text-[#9a3412] flex items-center gap-2">
+          <span className="text-base">⏰</span>
+          <span>
+            <span className="font-semibold">Late submission —</span> this entry is for{' '}
+            <span className="font-semibold">{formatDateLabel(today.date)}</span>, due by {today.deadlineLabel}.
+          </span>
+        </div>
+      )}
 
       <div className="card p-4 gradient-daily-scores flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -118,22 +141,29 @@ export default function DailyScores() {
         </span>
       </div>
 
-      <div className="card p-4 grid grid-cols-2 gap-3">
+      <div className="card p-5 grid grid-cols-2 gap-4">
         <Field label="Your Name">
           <input className="input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required />
         </Field>
-        <Field label="Date">
-          <input className="input bg-gray-50 text-navy/60" value={ptDateStringNow()} disabled />
+        <Field label={today.isLate ? 'Entry for' : 'Date'}>
+          <div className="input bg-gray-50 text-navy/70 flex items-center justify-between">
+            <span>{formatDateLabel(today.date)}</span>
+            {today.isLate && (
+              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-[#fed7aa] text-[#9a3412]">
+                Late
+              </span>
+            )}
+          </div>
         </Field>
       </div>
 
-      <div className="card p-4 space-y-2">
+      <div className="card p-5 space-y-2">
         <Field label="What challenges did you face today?">
           <textarea className="input" rows={2} value={challenges} onChange={(e) => setChallenges(e.target.value)} placeholder="Describe any challenges…" />
         </Field>
       </div>
 
-      <div className="card p-4 space-y-3">
+      <div className="card p-5 space-y-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-navy/50">Did you earn your way today?</p>
           <p className="text-xs text-navy/50 mt-1">
@@ -159,7 +189,7 @@ export default function DailyScores() {
         </div>
       </div>
 
-      <div className="card p-4 space-y-2">
+      <div className="card p-5 space-y-2">
         <Field label="How many volunteer hours did you put in today?" hint="Enter a number between 0–12">
           <input
             type="number"
@@ -190,18 +220,13 @@ export default function DailyScores() {
         </div>
       </div>
 
-      <div className="card p-4 flex items-center justify-between gradient-daily-scores">
-        <span className="text-sm font-semibold text-navy">Running total</span>
-        <span className="text-2xl font-extrabold text-navy">{total} / 50</span>
-      </div>
-
-      <div className="card p-4 space-y-2">
+      <div className="card p-5 space-y-2">
         <Field label="What goals did you work on today?">
           <textarea className="input" rows={2} value={goalsWorkedOn} onChange={(e) => setGoalsWorkedOn(e.target.value)} placeholder="Describe the goals you worked on…" />
         </Field>
       </div>
 
-      <div className="rounded-xl bg-[#eef2ff] border border-[#c7d2fe] p-3 text-sm text-navy/70">
+      <div className="rounded-xl bg-[#eef2ff] border border-[#c7d2fe] p-3.5 text-sm text-navy/70">
         👀 <span className="font-semibold">Before you submit:</span> Double-check that your name and date are
         correct. Submissions cannot be edited after they are sent.
       </div>
@@ -215,6 +240,17 @@ export default function DailyScores() {
       >
         {submitting ? 'Submitting…' : "Submit Today's Score"}
       </button>
+
+      {showCelebration && (
+        <GoalCelebration
+          message={
+            result?.earnedShield
+              ? `${streakCount}-day streak — you earned a shield! 🛡️`
+              : `Daily Scores submitted! ${streakCount}-day streak 🔥`
+          }
+          onClose={() => setShowCelebration(false)}
+        />
+      )}
     </div>
   );
 }

@@ -12,6 +12,16 @@ export function ptHourNow() {
   );
 }
 
+/** 'YYYY-MM-DD' -> e.g. "Thu, Jul 31" for friendly display. */
+export function formatDateLabel(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
 export function greetingFor(firstName) {
   const hour = ptHourNow();
   let part = 'Evening';
