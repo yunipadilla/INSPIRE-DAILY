@@ -87,6 +87,20 @@ export async function listMySignups(userId) {
   return rows;
 }
 
+/** Hours logged per ISO week (Mon-start) since `cutoffDate`, for one user's own completed signups. */
+export async function weeklyHoursForUser(userId, cutoffDate) {
+  const { rows } = await query(
+    `select date_trunc('week', completed_date)::date::text as week_start,
+            coalesce(sum(hours_spent), 0)::float as hours
+     from task_signups
+     where user_id = $1 and status = 'completed' and completed_date >= $2
+     group by week_start
+     order by week_start asc`,
+    [userId, cutoffDate]
+  );
+  return rows;
+}
+
 export async function listAllSignupsForHub() {
   const { rows } = await query(
     `select ts.*, t.title, t.level, u.first_name, u.last_name, u.app_role

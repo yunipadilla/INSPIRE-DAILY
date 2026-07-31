@@ -78,4 +78,14 @@ export function currentMonthBoundsPT(date = new Date()) {
   return { start, end };
 }
 
+/** { start, end } 'YYYY-MM-DD' bounds of the current Mon-Sun week, in Pacific Time. */
+export function currentWeekBoundsPT(date = new Date()) {
+  const todayStr = ptDateString(date);
+  const dow = ptDayOfWeek(todayStr); // 0=Sunday..6=Saturday
+  const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  const start = addDays(todayStr, mondayOffset);
+  const end = addDays(start, 6);
+  return { start, end };
+}
+
 export const PACIFIC_TIME_ZONE = PT_ZONE;

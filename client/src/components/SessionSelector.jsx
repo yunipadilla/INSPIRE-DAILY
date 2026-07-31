@@ -8,7 +8,7 @@ export default function SessionSelector({ max, value, onChange }) {
           type="button"
           onClick={() => onChange(n)}
           className={`pressable w-10 h-10 rounded-full border font-semibold text-sm ${
-            value === n ? 'border-[#f59e0b] bg-[#fef9c3] text-navy shadow-sm' : 'border-[#e5e5e5] text-navy/60'
+            value === n ? 'border-warning bg-yellow/40 text-navy shadow-sm' : 'border-border/16 text-navy/60'
           }`}
         >
           {n}

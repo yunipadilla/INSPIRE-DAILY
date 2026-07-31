@@ -19,17 +19,30 @@ export default function MyTaskCard({ signup, onComplete }) {
 
   return (
     <div className="card p-4 space-y-2">
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="font-semibold text-navy">{signup.title}</h3>
+      <div className="flex items-start gap-3">
         <span
-          className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full whitespace-nowrap ${
-            isCompleted ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'
+          className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
+            isCompleted ? 'border-success bg-success' : 'border-border/24'
           }`}
         >
-          {isCompleted ? 'Completed' : 'In Progress'}
+          {isCompleted && <span className="text-white text-[10px] leading-none">✓</span>}
         </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className={`font-semibold text-navy ${isCompleted ? 'line-through text-navy/50' : ''}`}>
+              {signup.title}
+            </h3>
+            <span
+              className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full whitespace-nowrap ${
+                isCompleted ? 'bg-success/16 text-success' : 'bg-warning/16 text-warning'
+              }`}
+            >
+              {isCompleted ? 'Completed' : 'In Progress'}
+            </span>
+          </div>
+          {signup.description && <p className="text-sm text-navy/60 mt-1">{signup.description}</p>}
+        </div>
       </div>
-      {signup.description && <p className="text-sm text-navy/60">{signup.description}</p>}
 
       {isCompleted ? (
         <p className="text-xs text-navy/40">
@@ -65,7 +78,7 @@ export default function MyTaskCard({ signup, onComplete }) {
       ) : (
         <button
           onClick={() => setExpanded(true)}
-          className="text-sm font-semibold text-emerald-600"
+          className="text-sm font-semibold text-success ml-8"
         >
           Mark Complete →
         </button>

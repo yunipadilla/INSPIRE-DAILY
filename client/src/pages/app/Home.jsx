@@ -7,17 +7,17 @@ import SectionHeader from '../../components/SectionHeader';
 import BubbleBackground from '../../components/BubbleBackground';
 
 const ACTION_CARDS = [
-  { key: 'dailyScores', label: 'Daily Scores', to: '/app/daily-scores', gradient: 'gradient-daily-scores', emoji: '📊', accent: '#3b82f6', bg: '#eff6ff' },
-  { key: 'summerChallenge', label: 'Summer Challenge', to: '/app/summer-challenge', gradient: 'gradient-summer-challenge', emoji: '☀️', accent: '#d97706', bg: '#fffbeb' },
-  { key: 'goals', label: 'Goals', to: '/app/goals', gradient: 'gradient-goals', emoji: '🎯', accent: '#c026d3', bg: '#fdf4ff' },
+  { key: 'dailyScores', label: 'Daily Scores', to: '/app/daily-scores', gradient: 'gradient-daily-scores', emoji: '📊', accent: 'rgb(var(--color-blue))', bg: 'rgb(var(--color-blue) / 0.14)' },
+  { key: 'inspireChallenge', label: 'Inspire Challenge', to: '/app/inspire-challenge', gradient: 'gradient-inspire-challenge', emoji: '🏆', accent: 'rgb(var(--color-warning))', bg: 'rgb(var(--color-yellow) / 0.35)' },
+  { key: 'goals', label: 'Goals', to: '/app/goals', gradient: 'gradient-goals', emoji: '🎯', accent: 'rgb(var(--color-lavender))', bg: 'rgb(var(--color-lavender) / 0.22)' },
   {
     key: 'internshipTasks',
     label: 'Internship Tasks',
     to: '/app/tasks',
     gradient: 'gradient-internship-tasks',
     emoji: '📋',
-    accent: '#059669',
-    bg: '#ecfdf5',
+    accent: 'rgb(var(--color-success))',
+    bg: 'rgb(var(--color-success) / 0.14)',
     hideForRoles: ['alumni'],
   },
 ];
@@ -26,16 +26,16 @@ const CELEBRATION_ICON = { streak_milestone: '🔥', shield_earned: '🛡️', g
 const MEDAL = ['🥇', '🥈', '🥉'];
 
 function ActionStatusPill({ status }) {
-  if (status === 'done') return <span className="text-xs font-bold text-emerald-600">✓ Done</span>;
+  if (status === 'done') return <span className="text-xs font-bold text-success">✓ Done</span>;
   if (status === 'rest_day') return <span className="text-xs font-bold text-navy/50">Rest day</span>;
   if (status === 'coming_soon' || status === 'hidden')
-    return <span className="text-xs font-bold text-gray-400">Coming soon</span>;
+    return <span className="text-xs font-bold text-ink-muted">Coming soon</span>;
   return <span className="text-xs font-bold text-navy">Start →</span>;
 }
 
 const FOCUS_COPY = {
   dailyScores: { title: "Log today's Daily Scores", sub: 'Takes about a minute.' },
-  summerChallenge: { title: "Log today's Summer Challenge entry", sub: 'Keep the streak going.' },
+  inspireChallenge: { title: "Log today's Inspire Challenge entry", sub: 'Keep the streak going.' },
   goals: { title: 'Check in on your goals', sub: "See what's next." },
   internshipTasks: { title: 'Pick up an internship task', sub: "There's work waiting for you." },
 };
@@ -141,9 +141,33 @@ export default function Home() {
         )}
       </section>
 
+      {summary?.weeklyProgress && summary.weeklyProgress.eligibleDays > 0 && (
+        <section>
+          <SectionHeader icon="📈" iconBg="rgb(var(--color-mint) / 0.3)" title="This Week" />
+          <div className="card p-4 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-semibold text-navy">
+                {summary.weeklyProgress.submitted} of {summary.weeklyProgress.eligibleDays} days logged
+              </span>
+              <span className="text-navy/50">
+                {Math.round((summary.weeklyProgress.submitted / summary.weeklyProgress.eligibleDays) * 100)}%
+              </span>
+            </div>
+            <div className="progress-track">
+              <div
+                className="progress-fill gradient-daily-scores"
+                style={{
+                  width: `${Math.min(100, (summary.weeklyProgress.submitted / summary.weeklyProgress.eligibleDays) * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+        </section>
+      )}
+
       <section className="opacity-90">
-        <SectionHeader icon="🎉" iconBg="#fce7f3" title="Celebration Feed" />
-        <div className="card divide-y divide-[#f5f5f5] overflow-hidden">
+        <SectionHeader icon="🎉" iconBg="rgb(var(--color-lavender) / 0.3)" title="Celebration Feed" />
+        <div className="card divide-y divide-border/6 overflow-hidden">
           {feed.length === 0 && (
             <p className="p-4 text-sm text-navy/50">No celebrations yet — check back soon!</p>
           )}
@@ -157,13 +181,13 @@ export default function Home() {
       </section>
 
       <section className="opacity-90">
-        <SectionHeader icon="🏆" iconBg="#e0e7ff" title="Leaderboard" />
+        <SectionHeader icon="🏆" iconBg="rgb(var(--color-primary) / 0.16)" title="Leaderboard" />
         {leaderboard?.guestNote && <p className="text-xs text-navy/50 mb-2">{leaderboard.guestNote}</p>}
-        <div className="card divide-y divide-[#f5f5f5] overflow-hidden">
+        <div className="card divide-y divide-border/6 overflow-hidden">
           {leaderboard?.entries.map((e, i) => (
             <div
               key={e.id}
-              className={`flex items-center gap-3 p-3 ${e.isCurrentUser ? 'bg-[#818cf8]/10' : ''}`}
+              className={`flex items-center gap-3 p-3 ${e.isCurrentUser ? 'bg-primary/10' : ''}`}
             >
               <span className="w-6 text-base text-center">{MEDAL[i] || <span className="text-sm font-bold text-navy/40">{e.rank}</span>}</span>
               <div className="w-9 h-9 rounded-full gradient-rainbow flex items-center justify-center text-xs font-bold text-white overflow-hidden flex-shrink-0">
@@ -176,7 +200,7 @@ export default function Home() {
               <span className="flex-1 text-sm font-medium text-navy">
                 {e.firstName} {e.lastInitial}.
               </span>
-              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-gray-100 text-navy/60">
+              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-surface-soft text-navy/60">
                 {e.appRole}
               </span>
               <span className="text-sm font-extrabold text-navy">{e.score}</span>

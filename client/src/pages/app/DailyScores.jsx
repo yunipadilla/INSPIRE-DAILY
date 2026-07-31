@@ -100,11 +100,12 @@ export default function DailyScores() {
             Total score: {result?.totalScore ?? today.existing?.totalScore} / 50
           </p>
           {result?.earnedShield && (
-            <p className="text-sm font-semibold text-emerald-600">🛡️ You earned a new streak shield!</p>
+            <p className="text-sm font-semibold text-success">🛡️ You earned a new streak shield!</p>
           )}
         </div>
         {showCelebration && (
           <GoalCelebration
+            theme="dailyScores"
             message={
               result?.earnedShield
                 ? `${streakCount}-day streak — you earned a shield! 🛡️`
@@ -125,15 +126,15 @@ export default function DailyScores() {
       <Header />
 
       {today.catchUp.available && !catchUpMode && (
-        <div className="rounded-xl bg-[#fff7ed] border border-[#fed7aa] p-3 text-sm text-[#9a3412] flex items-center justify-between gap-3">
+        <div className="rounded-xl bg-warning/10 border border-warning/25 p-3 text-sm text-navy/80 flex items-center justify-between gap-3">
           <span>
-            <span className="font-semibold">Missed {formatDateLabel(today.catchUp.date)}?</span> You can still
-            submit it as a catch-up entry, due by {today.catchUp.deadlineLabel}.
+            <span className="font-semibold text-warning">Missed {formatDateLabel(today.catchUp.date)}?</span> You
+            can still submit it as a catch-up entry, due by {today.catchUp.deadlineLabel}.
           </span>
           <button
             type="button"
             onClick={() => setCatchUpMode(true)}
-            className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full bg-[#fed7aa] text-[#9a3412] pressable"
+            className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full bg-warning/20 text-warning pressable"
           >
             Catch up instead
           </button>
@@ -141,22 +142,22 @@ export default function DailyScores() {
       )}
 
       {catchUpMode && (
-        <div className="rounded-xl bg-[#fff7ed] border border-[#fed7aa] p-3 text-sm text-[#9a3412] flex items-center justify-between gap-3">
+        <div className="rounded-xl bg-warning/10 border border-warning/25 p-3 text-sm text-navy/80 flex items-center justify-between gap-3">
           <span>
-            <span className="font-semibold">Catch-up entry —</span> this submission is for{' '}
+            <span className="font-semibold text-warning">Catch-up entry —</span> this submission is for{' '}
             <span className="font-semibold">{formatDateLabel(today.catchUp.date)}</span>.
           </span>
           <button
             type="button"
             onClick={() => setCatchUpMode(false)}
-            className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full bg-white text-[#9a3412] border border-[#fed7aa] pressable"
+            className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full bg-surface-elevated text-warning border border-warning/25 pressable"
           >
             Submit for today instead
           </button>
         </div>
       )}
 
-      <div className="card p-4 gradient-daily-scores flex items-center justify-between">
+      <div className="card p-5 gradient-daily-scores flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-3xl">🔥</span>
           <div>
@@ -166,7 +167,7 @@ export default function DailyScores() {
             </div>
           </div>
         </div>
-        <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-white/70 text-navy">
+        <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-surface-elevated/70 text-navy">
           🛡️ {streakShields}/3
         </span>
       </div>
@@ -176,10 +177,10 @@ export default function DailyScores() {
           <input className="input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required />
         </Field>
         <Field label={catchUpMode ? 'Entry for' : 'Date'}>
-          <div className="input bg-gray-50 text-navy/70 flex items-center justify-between">
+          <div className="input bg-surface-soft text-navy/70 flex items-center justify-between">
             <span>{formatDateLabel(entryDate)}</span>
             {catchUpMode && (
-              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-[#fed7aa] text-[#9a3412]">
+              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-warning/20 text-warning">
                 Catch-up
               </span>
             )}
@@ -187,13 +188,13 @@ export default function DailyScores() {
         </Field>
       </div>
 
-      <div className="card p-5 space-y-2">
+      <div className="card p-6 space-y-2">
         <Field label="What challenges did you face today?">
           <textarea className="input" rows={2} value={challenges} onChange={(e) => setChallenges(e.target.value)} placeholder="Describe any challenges…" />
         </Field>
       </div>
 
-      <div className="card p-5 space-y-3">
+      <div className="card p-6 space-y-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-navy/50">Did you earn your way today?</p>
           <p className="text-xs text-navy/50 mt-1">
@@ -205,21 +206,21 @@ export default function DailyScores() {
           <button
             type="button"
             onClick={() => setEarnedWay(true)}
-            className={`flex-1 rounded-lg py-2.5 text-sm font-semibold border ${earnedWay === true ? 'border-[#60a5fa] bg-[#bae6fd]/40 text-navy' : 'border-[#e5e5e5] text-navy/60'}`}
+            className={`flex-1 rounded-lg py-2.5 text-sm font-semibold border ${earnedWay === true ? 'border-blue bg-blue/15 text-navy' : 'border-border/16 text-navy/60'}`}
           >
             Yes
           </button>
           <button
             type="button"
             onClick={() => setEarnedWay(false)}
-            className={`flex-1 rounded-lg py-2.5 text-sm font-semibold border ${earnedWay === false ? 'border-[#60a5fa] bg-[#bae6fd]/40 text-navy' : 'border-[#e5e5e5] text-navy/60'}`}
+            className={`flex-1 rounded-lg py-2.5 text-sm font-semibold border ${earnedWay === false ? 'border-blue bg-blue/15 text-navy' : 'border-border/16 text-navy/60'}`}
           >
             No
           </button>
         </div>
       </div>
 
-      <div className="card p-5 space-y-2">
+      <div className="card p-6 space-y-2">
         <Field label="How many volunteer hours did you put in today?" hint="Enter a number between 0–12">
           <input
             type="number"
@@ -250,18 +251,18 @@ export default function DailyScores() {
         </div>
       </div>
 
-      <div className="card p-5 space-y-2">
+      <div className="card p-6 space-y-2">
         <Field label="What goals did you work on today?">
           <textarea className="input" rows={2} value={goalsWorkedOn} onChange={(e) => setGoalsWorkedOn(e.target.value)} placeholder="Describe the goals you worked on…" />
         </Field>
       </div>
 
-      <div className="rounded-xl bg-[#eef2ff] border border-[#c7d2fe] p-3.5 text-sm text-navy/70">
+      <div className="rounded-xl bg-primary/8 border border-primary/20 p-3.5 text-sm text-navy/70">
         👀 <span className="font-semibold">Before you submit:</span> Double-check that your name and date are
         correct. Submissions cannot be edited after they are sent.
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       <button
         onClick={handleSubmit}
@@ -273,6 +274,7 @@ export default function DailyScores() {
 
       {showCelebration && (
         <GoalCelebration
+          theme="dailyScores"
           message={
             result?.earnedShield
               ? `${streakCount}-day streak — you earned a shield! 🛡️`
@@ -290,9 +292,9 @@ function Header() {
     <div>
       <h1 className="text-2xl font-bold">
         <span className="text-navy">Daily </span>
-        <span className="text-[#3b82f6]">Scores</span>
+        <span className="text-blue">Scores</span>
       </h1>
-      <p className="text-sm text-navy/50">Complete your daily check-in below.</p>
+      <p className="text-sm text-navy/50 italic">A quiet moment to reflect on your day.</p>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { query } from '../db.js';
-import { ptDateString, isSundayPT, currentMonthBoundsPT } from '../config/pacificTime.js';
+import { ptDateString, ptDayOfWeek, isSundayPT, currentMonthBoundsPT, currentWeekBoundsPT, addDays } from '../config/pacificTime.js';
 import { SUMMER_CHALLENGE_LAUNCH_DATE } from '../config/constants.js';
 import { findByUserAndDate as findDailyScore } from '../repositories/dailyScores.js';
 import { monthlyLeaderboard } from '../repositories/dailyScores.js';
@@ -12,17 +12,28 @@ const router = Router();
 router.get('/summary', requireAuth, async (req, res) => {
   const today = ptDateString();
   const sunday = isSundayPT();
+  const { start: weekStart } = currentWeekBoundsPT();
 
-  const [badgeCountRes, activeGoalsRes, dailyScoreToday, summerEntryToday] = await Promise.all([
-    query('select count(*)::int as count from badges where user_id = $1', [req.user.id]),
-    query('select count(*)::int as count from goals where user_id = $1 and completed = false', [
-      req.user.id,
-    ]),
-    sunday ? null : findDailyScore(req.user.id, today),
-    query('select 1 from summer_entries where user_id = $1 and date = $2', [req.user.id, today]),
-  ]);
+  const [badgeCountRes, activeGoalsRes, dailyScoreToday, challengeEntryToday, weekSubmissionsRes] =
+    await Promise.all([
+      query('select count(*)::int as count from badges where user_id = $1', [req.user.id]),
+      query('select count(*)::int as count from goals where user_id = $1 and completed = false', [
+        req.user.id,
+      ]),
+      sunday ? null : findDailyScore(req.user.id, today),
+      query('select 1 from summer_entries where user_id = $1 and date = $2', [req.user.id, today]),
+      query(
+        'select count(*)::int as count from daily_scores where user_id = $1 and date >= $2 and date <= $3',
+        [req.user.id, weekStart, today]
+      ),
+    ]);
 
-  const summerLaunched = today >= SUMMER_CHALLENGE_LAUNCH_DATE;
+  const challengeLaunched = today >= SUMMER_CHALLENGE_LAUNCH_DATE;
+
+  let eligibleDaysThisWeek = 0;
+  for (let d = weekStart; d <= today; d = addDays(d, 1)) {
+    if (ptDayOfWeek(d) !== 0) eligibleDaysThisWeek += 1;
+  }
 
   res.json({
     firstName: req.user.first_name,
@@ -34,13 +45,17 @@ router.get('/summary', requireAuth, async (req, res) => {
       streakShields: req.user.streak_shields,
       maxShields: 3,
     },
+    weeklyProgress: {
+      submitted: weekSubmissionsRes.rows[0].count,
+      eligibleDays: eligibleDaysThisWeek,
+    },
     todaysActions: {
       dailyScores: sunday ? 'rest_day' : dailyScoreToday ? 'done' : 'start',
-      summerChallenge: !summerLaunched
+      inspireChallenge: !challengeLaunched
         ? 'coming_soon'
         : sunday
           ? 'rest_day'
-          : summerEntryToday.rows.length
+          : challengeEntryToday.rows.length
             ? 'done'
             : 'start',
       goals: 'start',

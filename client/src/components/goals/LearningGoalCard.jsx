@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { apiFetch } from '../../lib/api';
+import ProgressRing from '../ui/ProgressRing';
 
 export default function LearningGoalCard({ goal, onRefresh, onCelebrate }) {
   const [logging, setLogging] = useState(false);
@@ -14,7 +15,7 @@ export default function LearningGoalCard({ goal, onRefresh, onCelebrate }) {
     setSubmitting(true);
     try {
       const data = await apiFetch(`/goals/${goal.id}/log-session`, { method: 'POST', body: { minutes: Number(minutes), note } });
-      if (data.goalJustCompleted) onCelebrate(`You completed "${goal.name}"! 🎉`);
+      if (data.goalJustCompleted) onCelebrate(`You completed "${goal.name}"! 🎉`, 'learning');
       setMinutes('');
       setNote('');
       setLogging(false);
@@ -25,10 +26,15 @@ export default function LearningGoalCard({ goal, onRefresh, onCelebrate }) {
   }
 
   return (
-    <div className="card p-4 space-y-3">
-      <h3 className="font-semibold text-navy">{goal.name}</h3>
-      <div className="text-2xl font-extrabold text-navy">
-        {totalMinutes} <span className="text-sm font-normal text-navy/50">/ {goal.details.targetMinutes} min</span>
+    <div className="card p-5 space-y-3">
+      <div className="flex items-center gap-3">
+        <ProgressRing value={totalMinutes} max={goal.details.targetMinutes || 1} size={52} strokeWidth={5} colorVar="--color-primary" />
+        <div className="flex-1">
+          <h3 className="font-semibold text-navy">{goal.name}</h3>
+          <p className="text-sm text-navy/50">
+            {totalMinutes} / {goal.details.targetMinutes} min
+          </p>
+        </div>
       </div>
 
       {logging ? (

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, requireStaff } from '../middleware/auth.js';
-import { ptDateString } from '../config/pacificTime.js';
+import { ptDateString, addDays } from '../config/pacificTime.js';
 import {
   listVisibleTasks,
   getTask,
@@ -11,6 +11,7 @@ import {
   getSignup,
   updateSignup,
   listMySignups,
+  weeklyHoursForUser,
   listAllSignupsForHub,
 } from '../repositories/internshipTasks.js';
 
@@ -61,6 +62,12 @@ router.get('/board', async (req, res) => {
 router.get('/my-tasks', async (req, res) => {
   const signups = await listMySignups(req.user.id);
   res.json({ signups: signups.map(toClientSignup) });
+});
+
+router.get('/weekly-hours', async (req, res) => {
+  const cutoff = addDays(ptDateString(), -42); // last 6 weeks
+  const rows = await weeklyHoursForUser(req.user.id, cutoff);
+  res.json({ weeks: rows.map((r) => ({ weekStart: r.week_start, hours: Number(r.hours) })) });
 });
 
 router.post('/:id/signup', async (req, res) => {

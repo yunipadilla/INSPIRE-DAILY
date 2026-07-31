@@ -16,10 +16,10 @@ export default function ReadingGoalCard({ goal, onRefresh, onCelebrate }) {
       });
       if (data.bookJustCompleted) {
         const book = data.goal.books.find((b) => b.id === bookId);
-        onCelebrate(`You finished "${book?.title}"! 📖`);
+        onCelebrate(`You finished "${book?.title}"! 📖`, 'reading');
       }
       if (data.goalJustCompleted) {
-        onCelebrate(`You completed "${goal.name}"! 🎉`);
+        onCelebrate(`You completed "${goal.name}"! 🎉`, 'reading');
       }
       await onRefresh();
     } finally {
@@ -28,11 +28,11 @@ export default function ReadingGoalCard({ goal, onRefresh, onCelebrate }) {
   }
 
   return (
-    <div className="card p-4 space-y-3">
+    <div className="card p-5 space-y-3">
       <h3 className="font-semibold text-navy">{goal.name}</h3>
       <div className="space-y-3">
         {goal.books.map((b) => (
-          <div key={b.id} className="border border-[#f0f0f0] rounded-xl p-3 space-y-2">
+          <div key={b.id} className="border border-border/10 rounded-xl p-3 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-navy">
                 {b.title} {b.completed && '✅'}
@@ -41,8 +41,8 @@ export default function ReadingGoalCard({ goal, onRefresh, onCelebrate }) {
                 {b.currentPage}/{b.totalPages} pages
               </span>
             </div>
-            <div className="h-2 rounded-full bg-[#f0f0f0] overflow-hidden">
-              <div className="h-full gradient-goals" style={{ width: `${b.progressPct}%` }} />
+            <div className="progress-track">
+              <div className="progress-fill gradient-goals" style={{ width: `${b.progressPct}%` }} />
             </div>
             {!b.completed && (
               <div className="flex gap-2">

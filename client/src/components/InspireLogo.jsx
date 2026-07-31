@@ -27,7 +27,7 @@ export default function InspireLogo({ size = 40, showTagline = true, className =
       </svg>
       {showTagline && (
         <div
-          className="text-[#1a1a2e] font-semibold tracking-widest -mt-1"
+          className="text-navy/70 font-semibold tracking-widest -mt-1"
           style={{ fontSize: Math.max(9, size * 0.22) }}
         >
           DAILY

@@ -7,6 +7,7 @@ import EmptyState from '../../components/ui/EmptyState';
 import ErrorState from '../../components/ui/ErrorState';
 import Skeleton from '../../components/ui/Skeleton';
 import ProgressBar from '../../components/ui/ProgressBar';
+import Medal from '../../components/ui/Medal';
 
 export default function MemberProfile() {
   const { id } = useParams();
@@ -138,15 +139,9 @@ export default function MemberProfile() {
         {badges.length === 0 ? (
           <EmptyState icon="🏅" title="No badges earned yet" />
         ) : (
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-3 flex-wrap">
             {badges.map((b) => (
-              <div
-                key={b.id}
-                title={`${b.name} — ${b.earnedDate}`}
-                className="w-11 h-11 rounded-full gradient-rainbow shadow-sm flex items-center justify-center text-lg"
-              >
-                {b.iconEmoji || '🏅'}
-              </div>
+              <Medal key={b.id} icon={b.iconEmoji} category={b.badgeType} title={`${b.name} — ${b.earnedDate}`} />
             ))}
           </div>
         )}

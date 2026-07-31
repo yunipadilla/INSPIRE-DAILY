@@ -17,7 +17,7 @@ export default function MeditationGoalCard({ goal, onRefresh, onCelebrate }) {
         method: 'POST',
         body: { minutes: goal.details.dailyTargetMinutes },
       });
-      if (data.goalJustCompleted) onCelebrate(`You completed "${goal.name}"! 🎉`);
+      if (data.goalJustCompleted) onCelebrate(`You completed "${goal.name}"! 🎉`, 'meditation');
       await onRefresh();
     } finally {
       setSubmitting(false);
@@ -25,7 +25,7 @@ export default function MeditationGoalCard({ goal, onRefresh, onCelebrate }) {
   }
 
   return (
-    <div className="card p-4 space-y-3">
+    <div className="card p-5 space-y-3">
       <h3 className="font-semibold text-navy">{goal.name}</h3>
       <div className="flex gap-4">
         <div>
@@ -39,7 +39,7 @@ export default function MeditationGoalCard({ goal, onRefresh, onCelebrate }) {
       </div>
 
       {loggedToday ? (
-        <p className="text-sm font-semibold text-emerald-600">✓ Logged today's meditation</p>
+        <p className="text-sm font-semibold text-success">✓ Logged today's meditation</p>
       ) : (
         <button onClick={handleLog} disabled={submitting} className="btn-bubble w-full py-2 text-sm text-navy gradient-goals">
           {submitting ? 'Saving…' : "Log Today's Meditation"}

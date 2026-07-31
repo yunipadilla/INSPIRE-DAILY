@@ -30,6 +30,10 @@ export default function Goals() {
     setData(d);
   }
 
+  function celebrate(message, theme) {
+    setCelebration({ message, theme });
+  }
+
   useEffect(() => {
     refresh();
   }, []);
@@ -55,7 +59,7 @@ export default function Goals() {
         {data.active.map((goal) => {
           const Card = CARD_BY_TYPE[goal.type];
           return Card ? (
-            <Card key={goal.id} goal={goal} onRefresh={refresh} onCelebrate={setCelebration} />
+            <Card key={goal.id} goal={goal} onRefresh={refresh} onCelebrate={celebrate} />
           ) : null;
         })}
       </section>
@@ -74,7 +78,13 @@ export default function Goals() {
         </section>
       )}
 
-      {celebration && <GoalCelebration message={celebration} onClose={() => setCelebration(null)} />}
+      {celebration && (
+        <GoalCelebration
+          message={celebration.message}
+          theme={celebration.theme}
+          onClose={() => setCelebration(null)}
+        />
+      )}
     </div>
   );
 }

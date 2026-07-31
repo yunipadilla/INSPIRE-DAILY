@@ -5,7 +5,7 @@ export default function TaskBoardCard({ task, onSignUp, signingUp }) {
     <div className="card p-4 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-semibold text-navy">{task.title}</h3>
-        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[#bbf7d0] text-navy/70 whitespace-nowrap">
+        <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-mint/30 text-navy/70 whitespace-nowrap">
           {LEVEL_LABELS[task.level]}
         </span>
       </div>

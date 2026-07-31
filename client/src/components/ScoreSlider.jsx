@@ -23,7 +23,7 @@ export default function ScoreSlider({ label, question, lowLabel, highLabel, valu
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.6, opacity: 0, y: -6 }}
               transition={{ duration: 0.15 }}
-              className="w-10 h-10 rounded-full bg-[#60a5fa] text-white font-bold flex items-center justify-center shadow-sm"
+              className="w-10 h-10 rounded-full bg-blue text-white font-bold flex items-center justify-center shadow-sm"
             >
               {value}
             </motion.div>
@@ -36,7 +36,7 @@ export default function ScoreSlider({ label, question, lowLabel, highLabel, valu
           step={1}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="w-full accent-[#60a5fa]"
+          className="w-full accent-blue"
         />
       </div>
 
@@ -52,7 +52,7 @@ export default function ScoreSlider({ label, question, lowLabel, highLabel, valu
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="text-center text-xs font-semibold text-[#3b82f6] mt-2"
+          className="text-center text-xs font-semibold text-blue mt-2"
         >
           {adaptiveLabel(value, lowLabel, highLabel)}
         </motion.p>

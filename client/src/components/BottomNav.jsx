@@ -1,20 +1,20 @@
 import { NavLink } from 'react-router-dom';
-import { Home, LineChart, Sun, Target, ClipboardList, CircleUserRound } from 'lucide-react';
+import { Home, LineChart, Trophy, Target, ClipboardList, CircleUserRound } from 'lucide-react';
 
 const TABS = [
-  { to: '/app', end: true, label: 'Home', icon: Home, activeColor: '#1a1a2e', activeBg: '#f1f1f4' },
-  { to: '/app/daily-scores', label: 'Scores', icon: LineChart, activeColor: '#2563eb', activeBg: '#dbeafe' },
-  { to: '/app/summer-challenge', label: 'Summer', icon: Sun, activeColor: '#d97706', activeBg: '#fef3c7' },
-  { to: '/app/goals', label: 'Goals', icon: Target, activeColor: '#c026d3', activeBg: '#fae8ff' },
+  { to: '/app', end: true, label: 'Home', icon: Home, activeColor: 'rgb(var(--color-text-primary))', activeBg: 'rgb(var(--color-surface-soft))' },
+  { to: '/app/daily-scores', label: 'Scores', icon: LineChart, activeColor: 'rgb(var(--color-blue))', activeBg: 'rgb(var(--color-blue) / 0.16)' },
+  { to: '/app/inspire-challenge', label: 'Challenge', icon: Trophy, activeColor: 'rgb(var(--color-warning))', activeBg: 'rgb(var(--color-yellow) / 0.35)' },
+  { to: '/app/goals', label: 'Goals', icon: Target, activeColor: 'rgb(var(--color-lavender))', activeBg: 'rgb(var(--color-lavender) / 0.22)' },
   {
     to: '/app/tasks',
     label: 'Tasks',
     icon: ClipboardList,
-    activeColor: '#059669',
-    activeBg: '#d1fae5',
+    activeColor: 'rgb(var(--color-success))',
+    activeBg: 'rgb(var(--color-success) / 0.16)',
     hideForRoles: ['alumni'],
   },
-  { to: '/app/profile', label: 'Profile', icon: CircleUserRound, activeColor: '#6366f1', activeBg: '#e0e7ff' },
+  { to: '/app/profile', label: 'Profile', icon: CircleUserRound, activeColor: 'rgb(var(--color-primary))', activeBg: 'rgb(var(--color-primary) / 0.16)' },
 ];
 
 export default function BottomNav({ appRole }) {

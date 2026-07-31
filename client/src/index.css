@@ -84,7 +84,7 @@ body {
 .gradient-daily-scores { background-image: linear-gradient(135deg, #bae6fd, #60a5fa); }
 .gradient-goals { background-image: linear-gradient(135deg, #e9d5ff, #f9a8d4); }
 .gradient-internship-tasks { background-image: linear-gradient(135deg, #bbf7d0, #6ee7b7); }
-.gradient-summer-challenge { background-image: linear-gradient(135deg, #fef9c3, #fed7aa); }
+.gradient-inspire-challenge { background-image: linear-gradient(135deg, #fef9c3, #fed7aa); }
 .gradient-rainbow { background-image: linear-gradient(135deg, #6ee7b7, #38bdf8, #818cf8, #e879f9, #fb7185); }
 
 .text-gradient-inspire {
@@ -98,7 +98,11 @@ body {
    highlight (light catching the upper edge), and a soft layered shadow for
    real elevation instead of a flat 1px border doing all the work. */
 .card {
-  background: rgb(var(--color-surface-elevated));
+  /* background-color, NOT the `background` shorthand — a shorthand here
+     would reset background-image to `none` on any element that also gets a
+     `gradient-*` class (e.g. `.card.gradient-goals`), silently erasing the
+     gradient. This bit real surfaces across the app before being caught. */
+  background-color: rgb(var(--color-surface-elevated));
   border-radius: 1.25rem;
   border: 1px solid rgb(var(--color-border) / 0.08);
   box-shadow:
@@ -289,6 +293,94 @@ body {
   -webkit-box-shadow: 0 0 0 1000px rgb(var(--color-surface-interactive)) inset;
   transition: background-color 9999s ease-in-out 0s;
 }
+
+/* Dedicated gradient-hero card — used where a surface needs the rainbow (or
+   any) gradient AS its background-image. Deliberately does NOT use `.card`:
+   `.card` sets the `background` shorthand, which resets `background-image`
+   to `none` and would silently erase a gradient applied alongside it (this
+   is exactly what happened to the old Profile header). Carries its own
+   depth/highlight treatment instead, modeled on `.bubble-card`. */
+.gradient-hero {
+  position: relative;
+  border-radius: 1.75rem;
+  border: 1px solid rgb(var(--color-highlight) / 0.35);
+  box-shadow:
+    0 1px 0 rgb(var(--color-highlight) / 0.5) inset,
+    0 30px 60px -20px rgb(var(--color-primary) / 0.35),
+    0 12px 28px -12px rgb(var(--color-shadow) / 0.22);
+}
+
+/* Glass surface — for elements that should feel like they're floating above
+   the page (celebration modals, overlays) rather than sitting flush like a
+   `.card`. Translucent + blurred, so whatever's behind it stays faintly
+   visible. */
+.card-glass {
+  background: rgb(var(--color-surface-elevated) / 0.72);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border-radius: 1.75rem;
+  border: 1px solid rgb(var(--color-highlight) / 0.4);
+  box-shadow:
+    0 1px 0 rgb(var(--color-highlight) / 0.6) inset,
+    0 30px 60px -20px rgb(var(--color-shadow) / 0.3),
+    0 12px 28px -12px rgb(var(--color-shadow) / 0.25);
+}
+
+/* =========================================================================
+   Medal — the badge-wall building block. A circular "coin" with a metallic
+   ring, an embossed bevel (inset highlight + inset shadow, like a struck
+   medallion), a lifted drop shadow, and a small ribbon notch underneath.
+   Tone is set by pairing `.medal` with one of the `.medal-*` gradient
+   modifiers below; locked state swaps to `.medal-locked` and desaturates.
+   ========================================================================= */
+.medal {
+  position: relative;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 2px 0 rgb(255 255 255 / 0.55) inset,
+    0 -3px 6px rgb(0 0 0 / 0.18) inset,
+    0 6px 14px -4px rgb(var(--color-shadow) / 0.35);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+.medal::before {
+  /* inner "well" the icon sits in — a subtly recessed disc, like a coin's face */
+  content: '';
+  position: absolute;
+  inset: 14%;
+  border-radius: 9999px;
+  background: rgb(0 0 0 / 0.06);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.18) inset, 0 1px 0 rgb(255 255 255 / 0.4);
+}
+.medal::after {
+  /* ribbon notch — two small trapezoids peeking out beneath the coin */
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  width: 55%;
+  height: 12px;
+  transform: translateX(-50%);
+  background: inherit;
+  filter: brightness(0.82);
+  clip-path: polygon(15% 0%, 85% 0%, 70% 100%, 30% 100%);
+  z-index: -1;
+}
+.medal-gold { background-image: linear-gradient(145deg, #fff3c4 0%, #fbbf24 35%, #d97706 70%, #fde68a 100%); }
+.medal-silver { background-image: linear-gradient(145deg, #f8fafc 0%, #cbd5e1 35%, #64748b 70%, #e2e8f0 100%); }
+.medal-bronze { background-image: linear-gradient(145deg, #fed7aa 0%, #c2703d 35%, #7c3a12 70%, #e8a172 100%); }
+.medal-platinum { background-image: linear-gradient(145deg, #f5f3ff 0%, #c4b5fd 35%, #7c3aed 70%, #ddd6fe 100%); }
+.medal-locked {
+  background-image: linear-gradient(145deg, rgb(var(--color-surface-interactive)), rgb(var(--color-surface-soft)));
+  filter: saturate(0.4);
+  box-shadow:
+    0 2px 0 rgb(var(--color-highlight) / 0.3) inset,
+    0 -2px 4px rgb(0 0 0 / 0.08) inset,
+    0 4px 10px -4px rgb(var(--color-shadow) / 0.2);
+}
+.medal-locked::after { opacity: 0.5; }
 
 /* The app's one primary-button shape: a touchable pill with real depth.
    Deliberately carries no background/text color of its own — pair it with

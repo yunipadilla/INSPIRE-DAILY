@@ -6,6 +6,7 @@ import { ptDateStringNow } from '../../lib/pacificTime';
 import TileButton from '../../components/TileButton';
 import SessionSelector from '../../components/SessionSelector';
 import CircleCheck from '../../components/CircleCheck';
+import SectionHeader from '../../components/SectionHeader';
 
 const SCREEN_TIME_OPTIONS = [
   { tier: 1, label: '≤ 1 hour', sublabel: '3 pts' },
@@ -33,6 +34,8 @@ const DEFAULT_ENTRY = {
   coldPlungeType: null,
 };
 
+const MEDAL = ['🥇', '🥈', '🥉'];
+
 function Countdown({ launchDate }) {
   const [msLeft, setMsLeft] = useState(() => new Date(`${launchDate}T00:00:00-07:00`).getTime() - Date.now());
 
@@ -57,7 +60,7 @@ function Countdown({ launchDate }) {
         [minutes, 'Min'],
         [seconds, 'Sec'],
       ].map(([value, label]) => (
-        <div key={label} className="bg-white/90 rounded-xl px-4 py-3 text-center min-w-[64px]">
+        <div key={label} className="bg-surface-elevated/90 rounded-xl px-4 py-3 text-center min-w-[64px]">
           <div className="text-2xl font-extrabold text-navy">{String(value).padStart(2, '0')}</div>
           <div className="text-[10px] uppercase text-navy/50">{label}</div>
         </div>
@@ -70,8 +73,8 @@ function Header() {
   return (
     <div>
       <h1 className="text-2xl font-bold">
-        <span className="text-navy">Summer </span>
-        <span className="text-[#d97706]">Challenge</span>
+        <span className="text-navy">Inspire </span>
+        <span className="text-warning">Challenge</span>
       </h1>
       <p className="text-sm text-navy/50">Log your daily activities and earn points for the group leaderboard.</p>
     </div>
@@ -83,7 +86,7 @@ function CategoryCard({ title, points, subtitle, children }) {
     <div className="card p-4 space-y-3">
       <div>
         <h3 className="text-xs font-bold uppercase tracking-wide text-navy/60">
-          {title} {points && <span className="text-[#d97706]">· {points}</span>}
+          {title} {points && <span className="text-warning">· {points}</span>}
         </h3>
         {subtitle && <p className="text-xs text-navy/40 mt-0.5">{subtitle}</p>}
       </div>
@@ -92,9 +95,40 @@ function CategoryCard({ title, points, subtitle, children }) {
   );
 }
 
-export default function SummerChallenge() {
+function Leaderboard({ entries }) {
+  if (!entries) return null;
+  return (
+    <section>
+      <SectionHeader icon="🏆" iconBg="rgb(var(--color-warning) / 0.16)" title="Monthly Winners" />
+      <div className="card divide-y divide-border/6 overflow-hidden">
+        {entries.length === 0 && <p className="p-4 text-sm text-navy/50">No points logged yet this month.</p>}
+        {entries.map((e, i) => (
+          <div key={e.id} className={`flex items-center gap-3 p-3 ${e.isCurrentUser ? 'bg-warning/10' : ''}`}>
+            <span className="w-6 text-base text-center">
+              {MEDAL[i] || <span className="text-sm font-bold text-navy/40">{e.rank}</span>}
+            </span>
+            <div className="w-9 h-9 rounded-full gradient-inspire-challenge flex items-center justify-center text-xs font-bold text-navy overflow-hidden flex-shrink-0">
+              {e.profilePhotoUrl ? (
+                <img src={e.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                `${e.firstName?.[0] || ''}${e.lastInitial}`
+              )}
+            </div>
+            <span className="flex-1 text-sm font-medium text-navy">
+              {e.firstName} {e.lastInitial}.
+            </span>
+            <span className="text-sm font-extrabold text-navy">{e.score} pts</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export default function InspireChallenge() {
   const { user } = useAuth();
   const [today, setToday] = useState(null);
+  const [leaderboard, setLeaderboard] = useState(null);
   const [entry, setEntry] = useState(DEFAULT_ENTRY);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
@@ -102,6 +136,7 @@ export default function SummerChallenge() {
 
   useEffect(() => {
     apiFetch('/summer-challenge/today').then(setToday);
+    apiFetch('/summer-challenge/leaderboard').then((d) => setLeaderboard(d.entries));
   }, []);
 
   function update(field, value) {
@@ -128,10 +163,10 @@ export default function SummerChallenge() {
   if (!today.isLaunched) {
     return (
       <div className="relative py-10">
-        <div className="gradient-summer-challenge rounded-2xl p-8 text-center space-y-5">
+        <div className="gradient-inspire-challenge rounded-2xl p-8 text-center space-y-5">
           <div className="text-4xl">🔒</div>
           <h1 className="text-xl font-bold text-navy">Coming Soon</h1>
-          <p className="text-navy/70 text-sm">The Summer Challenge launches soon. Get ready!</p>
+          <p className="text-navy/70 text-sm">The Inspire Challenge launches soon. Get ready!</p>
           <Countdown launchDate={today.launchDate} />
         </div>
         <div className="mt-6 space-y-3 opacity-30 blur-sm pointer-events-none select-none">
@@ -149,7 +184,7 @@ export default function SummerChallenge() {
         <div className="text-4xl">☀️</div>
         <h1 className="text-xl font-bold text-navy">Today is Sunday — your rest day.</h1>
         <p className="text-navy/60 max-w-xs mx-auto">
-          The Summer Challenge is not required today. Enjoy your day off!
+          The Inspire Challenge is not required today. Enjoy your day off!
         </p>
       </div>
     );
@@ -164,9 +199,16 @@ export default function SummerChallenge() {
         <Header />
         <div className="card p-6 text-center space-y-2">
           <div className="text-3xl">✅</div>
-          <h1 className="text-lg font-bold text-navy">Summer Challenge points submitted for today!</h1>
+          <h1 className="text-lg font-bold text-navy">Inspire Challenge points submitted for today!</h1>
           <p className="text-navy/60 text-sm">Total points: {totalPoints}</p>
         </div>
+        {today.volunteerHoursThisMonth > 0 && (
+          <div className="card p-4 flex items-center justify-between">
+            <span className="text-sm font-semibold text-navy">Volunteer hours this month</span>
+            <span className="text-lg font-extrabold text-navy">{today.volunteerHoursThisMonth}</span>
+          </div>
+        )}
+        <Leaderboard entries={leaderboard} />
       </div>
     );
   }
@@ -175,14 +217,14 @@ export default function SummerChallenge() {
     <div className="py-4 space-y-4 pb-10">
       <Header />
 
-      <div className="rounded-xl bg-[#fef3c7] border border-[#fde68a] p-3 text-sm text-[#92400e]">
-        ⏰ <span className="font-bold">Submit by {today.deadlineLabel}.</span> Points only count if you submit before
-        the deadline.
+      <div className="rounded-xl bg-warning/12 border border-warning/25 p-3 text-sm text-navy/80">
+        ⏰ <span className="font-bold text-warning">Submit by {today.deadlineLabel}.</span> Points only count if you
+        submit before the deadline.
       </div>
 
-      <div className="rounded-xl bg-[#fef3c7] border border-[#fde68a] p-3 text-sm text-[#92400e]">
-        🛡️ <span className="font-bold">Honor Code:</span> This challenge runs on integrity. You are trusted to log
-        honestly. If caught cheating, you will be removed from the challenge for that month.
+      <div className="rounded-xl bg-warning/12 border border-warning/25 p-3 text-sm text-navy/80">
+        🛡️ <span className="font-bold text-warning">Honor Code:</span> This challenge runs on integrity. You are
+        trusted to log honestly. If caught cheating, you will be removed from the challenge for that month.
       </div>
 
       <div className="card p-4 grid grid-cols-2 gap-3">
@@ -196,10 +238,17 @@ export default function SummerChallenge() {
         </div>
       </div>
 
-      <div className="card p-4 flex items-center justify-between gradient-summer-challenge">
+      <div className="card p-4 flex items-center justify-between gradient-inspire-challenge">
         <span className="text-sm font-semibold text-navy">Today's Points So Far</span>
         <span className="text-2xl font-extrabold text-navy">{livePoints}</span>
       </div>
+
+      {today.volunteerHoursThisMonth > 0 && (
+        <div className="card p-3 flex items-center justify-between text-sm">
+          <span className="text-navy/60">Volunteer hours logged this month (via Daily Scores)</span>
+          <span className="font-bold text-navy">{today.volunteerHoursThisMonth}</span>
+        </div>
+      )}
 
       <CategoryCard title="Sleep" points="up to 2 pts">
         <CircleCheck label="In bed before 10pm" points="+1 pt" checked={entry.sleepBedBefore10} onChange={(v) => update('sleepBedBefore10', v)} />
@@ -277,20 +326,22 @@ export default function SummerChallenge() {
         </div>
       </CategoryCard>
 
-      <div className="rounded-xl bg-[#eef2ff] border border-[#c7d2fe] p-3 text-sm text-navy/70">
+      <div className="rounded-xl bg-primary/8 border border-primary/20 p-3 text-sm text-navy/70">
         👀 <span className="font-semibold">Before you submit:</span> Double-check that your name and date are
         correct. Submissions cannot be edited after they are sent.
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       <button
         onClick={handleSubmit}
         disabled={submitting}
-        className="btn-bubble w-full py-3 text-navy gradient-summer-challenge"
+        className="btn-bubble w-full py-3 text-navy gradient-inspire-challenge"
       >
         {submitting ? 'Submitting…' : `Submit My Points · ${livePoints} pts`}
       </button>
+
+      <Leaderboard entries={leaderboard} />
     </div>
   );
 }

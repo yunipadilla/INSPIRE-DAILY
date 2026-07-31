@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { ptDateString, isSundayPT, deadlineLabelFor } from '../config/pacificTime.js';
+import { ptDateString, isSundayPT, deadlineLabelFor, currentMonthBoundsPT } from '../config/pacificTime.js';
 import { SUMMER_CHALLENGE_LAUNCH_DATE } from '../config/constants.js';
 import { calculateSummerPoints } from '../lib/summerChallenge.js';
-import { findByUserAndDate, insertSummerEntry } from '../repositories/summerEntries.js';
+import { findByUserAndDate, insertSummerEntry, monthlySummerLeaderboard } from '../repositories/summerEntries.js';
+import { query } from '../db.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -28,7 +29,15 @@ router.get('/today', async (req, res) => {
   const today = ptDateString();
   const isLaunched = today >= SUMMER_CHALLENGE_LAUNCH_DATE;
   const sunday = isSundayPT();
-  const existing = isLaunched && !sunday ? await findByUserAndDate(req.user.id, today) : null;
+  const { start: monthStart, end: monthEnd } = currentMonthBoundsPT();
+
+  const [existing, volunteerHoursRes] = await Promise.all([
+    isLaunched && !sunday ? findByUserAndDate(req.user.id, today) : null,
+    query(
+      'select coalesce(sum(volunteer_hours), 0)::float as hours from daily_scores where user_id = $1 and date between $2 and $3',
+      [req.user.id, monthStart, monthEnd]
+    ),
+  ]);
 
   res.json({
     date: today,
@@ -38,24 +47,41 @@ router.get('/today', async (req, res) => {
     alreadySubmitted: Boolean(existing),
     existing: existing ? toClientEntry(existing) : null,
     deadlineLabel: deadlineLabelFor(today),
+    volunteerHoursThisMonth: volunteerHoursRes.rows[0].hours,
   });
+});
+
+router.get('/leaderboard', async (req, res) => {
+  const { start, end } = currentMonthBoundsPT();
+  const rows = await monthlySummerLeaderboard(start, end);
+  const top5 = rows.slice(0, 5).map((r, i) => ({
+    rank: i + 1,
+    id: r.id,
+    firstName: r.first_name,
+    lastInitial: r.last_name?.[0] || '',
+    appRole: r.app_role,
+    profilePhotoUrl: r.profile_photo_url,
+    score: Number(r.score),
+    isCurrentUser: r.id === req.user.id,
+  }));
+  res.json({ entries: top5 });
 });
 
 router.post('/', async (req, res) => {
   const today = ptDateString();
 
   if (today < SUMMER_CHALLENGE_LAUNCH_DATE) {
-    return res.status(400).json({ error: 'The Summer Challenge has not launched yet.' });
+    return res.status(400).json({ error: 'The Inspire Challenge has not launched yet.' });
   }
   if (isSundayPT()) {
     return res.status(400).json({
-      error: 'Today is Sunday — your rest day. The Summer Challenge is not required today.',
+      error: 'Today is Sunday — your rest day. The Inspire Challenge is not required today.',
     });
   }
 
   const existing = await findByUserAndDate(req.user.id, today);
   if (existing) {
-    return res.status(409).json({ error: 'You have already submitted your Summer Challenge points for today.' });
+    return res.status(409).json({ error: 'You have already submitted your Inspire Challenge points for today.' });
   }
 
   const values = {

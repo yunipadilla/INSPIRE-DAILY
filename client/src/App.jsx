@@ -10,7 +10,7 @@ import ResetPassword from './pages/ResetPassword';
 import ParentalConsent from './pages/ParentalConsent';
 import Home from './pages/app/Home';
 import DailyScores from './pages/app/DailyScores';
-import SummerChallenge from './pages/app/SummerChallenge';
+import InspireChallenge from './pages/app/InspireChallenge';
 import Profile from './pages/app/Profile';
 import InternshipTasks from './pages/app/InternshipTasks';
 import Goals from './pages/app/Goals';
@@ -48,7 +48,7 @@ export default function App() {
           <Route path="/app" element={<AppShell />}>
             <Route index element={<Home />} />
             <Route path="daily-scores" element={<DailyScores />} />
-            <Route path="summer-challenge" element={<SummerChallenge />} />
+            <Route path="inspire-challenge" element={<InspireChallenge />} />
             <Route path="goals" element={<Goals />} />
             <Route path="tasks" element={<InternshipTasks />} />
             <Route path="profile" element={<Profile />} />

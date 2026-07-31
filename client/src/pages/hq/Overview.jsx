@@ -115,7 +115,7 @@ export default function Overview() {
         <h2 className="text-sm font-bold text-navy uppercase tracking-wide mb-2">Quick actions</h2>
         <div className="grid grid-cols-2 gap-3">
           <Link to="/hq/members" className="pressable card card-lift p-4 flex items-center gap-2">
-            <span className="icon-badge" style={{ background: '#eef2ff' }}>
+            <span className="icon-badge" style={{ background: 'rgb(var(--color-primary) / 0.16)' }}>
               👥
             </span>
             <span className="text-sm font-semibold text-navy">View all members</span>

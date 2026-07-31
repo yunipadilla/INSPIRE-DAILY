@@ -52,7 +52,7 @@ export default function StaffPostTask({ onPost }) {
         ))}
       </select>
       <div className="flex gap-2">
-        <button type="button" onClick={() => setOpen(false)} className="flex-1 rounded-lg py-2 text-sm font-semibold text-navy/60 border border-[#e5e5e5]">
+        <button type="button" onClick={() => setOpen(false)} className="flex-1 rounded-lg py-2 text-sm font-semibold text-navy/60 border border-border/16">
           Cancel
         </button>
         <button
