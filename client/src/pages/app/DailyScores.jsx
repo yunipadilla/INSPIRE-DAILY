@@ -28,6 +28,8 @@ export default function DailyScores() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [showCelebration, setShowCelebration] = useState(false);
+  const [catchUpMode, setCatchUpMode] = useState(false);
+  const [submittedDate, setSubmittedDate] = useState(null);
 
   useEffect(() => {
     apiFetch('/daily-scores/today').then(setToday);
@@ -40,11 +42,13 @@ export default function DailyScores() {
       setError('Please answer whether you earned your way today.');
       return;
     }
+    const targetDate = catchUpMode ? today.catchUp.date : today.date;
     setSubmitting(true);
     try {
       const data = await apiFetch('/daily-scores', {
         method: 'POST',
         body: {
+          date: targetDate,
           displayName,
           challenges,
           earnedWay,
@@ -54,6 +58,7 @@ export default function DailyScores() {
         },
       });
       setResult(data);
+      setSubmittedDate(targetDate);
       setShowCelebration(true);
     } catch (err) {
       setError(err.data?.error || err.message);
@@ -89,7 +94,7 @@ export default function DailyScores() {
         <div className="card p-7 text-center space-y-2.5 gradient-daily-scores">
           <div className="text-4xl">✅</div>
           <h1 className="text-lg font-bold text-navy">
-            Daily Scores submitted for {formatDateLabel(today.date)}!
+            Daily Scores submitted for {formatDateLabel(submittedDate ?? today.date)}!
           </h1>
           <p className="text-navy/60 text-sm">
             Total score: {result?.totalScore ?? today.existing?.totalScore} / 50
@@ -112,17 +117,42 @@ export default function DailyScores() {
     );
   }
 
+  const entryDate = catchUpMode ? today.catchUp.date : today.date;
+  const activeDeadlineLabel = catchUpMode ? today.catchUp.deadlineLabel : today.deadlineLabel;
+
   return (
     <div className="py-4 space-y-5">
       <Header />
 
-      {today.isLate && (
-        <div className="rounded-xl bg-[#fff7ed] border border-[#fed7aa] p-3 text-sm text-[#9a3412] flex items-center gap-2">
-          <span className="text-base">⏰</span>
+      {today.catchUp.available && !catchUpMode && (
+        <div className="rounded-xl bg-[#fff7ed] border border-[#fed7aa] p-3 text-sm text-[#9a3412] flex items-center justify-between gap-3">
           <span>
-            <span className="font-semibold">Late submission —</span> this entry is for{' '}
-            <span className="font-semibold">{formatDateLabel(today.date)}</span>, due by {today.deadlineLabel}.
+            <span className="font-semibold">Missed {formatDateLabel(today.catchUp.date)}?</span> You can still
+            submit it as a catch-up entry, due by {today.catchUp.deadlineLabel}.
           </span>
+          <button
+            type="button"
+            onClick={() => setCatchUpMode(true)}
+            className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full bg-[#fed7aa] text-[#9a3412] pressable"
+          >
+            Catch up instead
+          </button>
+        </div>
+      )}
+
+      {catchUpMode && (
+        <div className="rounded-xl bg-[#fff7ed] border border-[#fed7aa] p-3 text-sm text-[#9a3412] flex items-center justify-between gap-3">
+          <span>
+            <span className="font-semibold">Catch-up entry —</span> this submission is for{' '}
+            <span className="font-semibold">{formatDateLabel(today.catchUp.date)}</span>.
+          </span>
+          <button
+            type="button"
+            onClick={() => setCatchUpMode(false)}
+            className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full bg-white text-[#9a3412] border border-[#fed7aa] pressable"
+          >
+            Submit for today instead
+          </button>
         </div>
       )}
 
@@ -132,7 +162,7 @@ export default function DailyScores() {
           <div>
             <div className="text-2xl font-extrabold text-navy">{streakCount} day streak</div>
             <div className="text-xs text-navy/60">
-              {streakCount === 0 ? 'Submit today to start your streak!' : `Submit by ${today.deadlineLabel}`}
+              {streakCount === 0 ? 'Submit today to start your streak!' : `Submit by ${activeDeadlineLabel}`}
             </div>
           </div>
         </div>
@@ -145,12 +175,12 @@ export default function DailyScores() {
         <Field label="Your Name">
           <input className="input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required />
         </Field>
-        <Field label={today.isLate ? 'Entry for' : 'Date'}>
+        <Field label={catchUpMode ? 'Entry for' : 'Date'}>
           <div className="input bg-gray-50 text-navy/70 flex items-center justify-between">
-            <span>{formatDateLabel(today.date)}</span>
-            {today.isLate && (
+            <span>{formatDateLabel(entryDate)}</span>
+            {catchUpMode && (
               <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-[#fed7aa] text-[#9a3412]">
-                Late
+                Catch-up
               </span>
             )}
           </div>

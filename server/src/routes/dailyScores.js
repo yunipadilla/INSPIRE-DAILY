@@ -12,34 +12,38 @@ import { updateStreakFields } from '../repositories/users.js';
 import { postCelebration } from '../repositories/celebrationFeed.js';
 
 const router = Router();
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * Which date a submission right now is actually "for". Mirrors streakEngine's
- * own grace window: before noon PT, if yesterday (a non-Sunday) is still
- * unsubmitted and today hasn't been submitted either, the user is filling in
- * yesterday's late entry, not starting today's. Otherwise it's today's.
+ * Yesterday is only ever a valid submission target as an explicit catch-up
+ * action, never a silent default: before noon PT (streakEngine's own grace
+ * window), a non-Sunday yesterday that the user hasn't submitted yet. Used
+ * both to advertise the option on GET /today and to validate an explicit
+ * `date` on POST — the caller must ask for it, it's never assumed.
  */
-async function resolveSubmissionDate(userId) {
+async function catchUpWindow(userId) {
   const today = ptDateString();
   const yesterday = addDays(today, -1);
-  if (isBeforeNoonPT() && ptDayOfWeek(yesterday) !== 0) {
-    const [todayRecord, yesterdayRecord] = await Promise.all([
-      findByUserAndDate(userId, today),
-      findByUserAndDate(userId, yesterday),
-    ]);
-    if (!todayRecord && !yesterdayRecord) return { date: yesterday, isLate: true };
+  if (!isBeforeNoonPT() || ptDayOfWeek(yesterday) === 0) {
+    return { available: false, date: yesterday };
   }
-  return { date: today, isLate: false };
+  const yesterdayRecord = await findByUserAndDate(userId, yesterday);
+  return {
+    available: !yesterdayRecord,
+    date: yesterday,
+    deadlineLabel: deadlineLabelFor(yesterday),
+  };
 }
 
 router.get('/today', requireAuth, async (req, res) => {
+  const today = ptDateString();
   const sunday = isSundayPT();
-  const { date, isLate } = sunday ? { date: ptDateString(), isLate: false } : await resolveSubmissionDate(req.user.id);
-  const existing = sunday ? null : await findByUserAndDate(req.user.id, date);
+  const existing = sunday ? null : await findByUserAndDate(req.user.id, today);
+  const catchUp = sunday ? { available: false, date: addDays(today, -1) } : await catchUpWindow(req.user.id);
+
   res.json({
-    date,
+    date: today,
     isSunday: sunday,
-    isLate,
     alreadySubmitted: Boolean(existing),
     existing: existing
       ? {
@@ -58,7 +62,8 @@ router.get('/today', requireAuth, async (req, res) => {
       : null,
     streakCount: req.user.streak_count,
     streakShields: req.user.streak_shields,
-    deadlineLabel: deadlineLabelFor(date),
+    deadlineLabel: deadlineLabelFor(today),
+    catchUp,
   });
 });
 
@@ -69,7 +74,22 @@ router.post('/', requireAuth, async (req, res) => {
     });
   }
 
-  const { date: targetDate } = await resolveSubmissionDate(req.user.id);
+  const today = ptDateString();
+  const requestedDate = req.body?.date;
+  let targetDate = today;
+
+  // Yesterday is accepted ONLY as an explicit, validated catch-up request —
+  // never inferred. Anything else supplied as `date` is rejected outright.
+  if (requestedDate !== undefined && requestedDate !== today) {
+    if (!DATE_RE.test(requestedDate)) {
+      return res.status(400).json({ error: 'Invalid date.' });
+    }
+    const catchUp = await catchUpWindow(req.user.id);
+    if (requestedDate !== catchUp.date || !catchUp.available) {
+      return res.status(400).json({ error: 'That date is not open for submission.' });
+    }
+    targetDate = catchUp.date;
+  }
 
   const parsed = dailyScoreSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -78,7 +98,7 @@ router.post('/', requireAuth, async (req, res) => {
 
   const existing = await findByUserAndDate(req.user.id, targetDate);
   if (existing) {
-    return res.status(409).json({ error: 'You have already submitted your Daily Scores for today.' });
+    return res.status(409).json({ error: 'You have already submitted your Daily Scores for that date.' });
   }
 
   const record = await insertDailyScore(req.user.id, targetDate, parsed.data);
