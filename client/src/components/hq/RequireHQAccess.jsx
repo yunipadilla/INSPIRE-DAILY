@@ -16,7 +16,7 @@ export default function RequireHQAccess() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-appbg">
-        <div className="animate-pulse text-navy/50 font-medium">Loading…</div>
+        <div className="animate-pulse text-navy/60 font-medium">Loading…</div>
       </div>
     );
   }

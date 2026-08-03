@@ -1,4 +1,4 @@
-export default function SectionHeader({ icon, iconBg = '#f3f4f6', title, action }) {
+export default function SectionHeader({ icon, iconBg = 'rgb(var(--color-surface-soft))', title, action }) {
   return (
     <div className="flex items-center justify-between mb-2">
       <div className="flex items-center gap-2">

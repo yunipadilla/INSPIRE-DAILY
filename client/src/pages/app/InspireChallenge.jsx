@@ -62,7 +62,7 @@ function Countdown({ launchDate }) {
       ].map(([value, label]) => (
         <div key={label} className="bg-surface-elevated/90 rounded-xl px-4 py-3 text-center min-w-[64px]">
           <div className="text-2xl font-extrabold text-navy">{String(value).padStart(2, '0')}</div>
-          <div className="text-[10px] uppercase text-navy/50">{label}</div>
+          <div className="text-[10px] uppercase text-navy/60">{label}</div>
         </div>
       ))}
     </div>
@@ -76,7 +76,7 @@ function Header() {
         <span className="text-navy">Inspire </span>
         <span className="text-warning">Challenge</span>
       </h1>
-      <p className="text-sm text-navy/50">Log your daily activities and earn points for the group leaderboard.</p>
+      <p className="text-sm text-navy/60">Log your daily activities and earn points for the group leaderboard.</p>
     </div>
   );
 }
@@ -88,7 +88,7 @@ function CategoryCard({ title, points, subtitle, children }) {
         <h3 className="text-xs font-bold uppercase tracking-wide text-navy/60">
           {title} {points && <span className="text-warning">· {points}</span>}
         </h3>
-        {subtitle && <p className="text-xs text-navy/40 mt-0.5">{subtitle}</p>}
+        {subtitle && <p className="text-xs text-navy/60 mt-0.5">{subtitle}</p>}
       </div>
       {children}
     </div>
@@ -101,11 +101,11 @@ function Leaderboard({ entries }) {
     <section>
       <SectionHeader icon="🏆" iconBg="rgb(var(--color-warning) / 0.16)" title="Monthly Winners" />
       <div className="card divide-y divide-border/6 overflow-hidden">
-        {entries.length === 0 && <p className="p-4 text-sm text-navy/50">No points logged yet this month.</p>}
+        {entries.length === 0 && <p className="p-4 text-sm text-navy/60">No points logged yet this month.</p>}
         {entries.map((e, i) => (
           <div key={e.id} className={`flex items-center gap-3 p-3 ${e.isCurrentUser ? 'bg-warning/10' : ''}`}>
             <span className="w-6 text-base text-center">
-              {MEDAL[i] || <span className="text-sm font-bold text-navy/40">{e.rank}</span>}
+              {MEDAL[i] || <span className="text-sm font-bold text-navy/60">{e.rank}</span>}
             </span>
             <div className="w-9 h-9 rounded-full gradient-inspire-challenge flex items-center justify-center text-xs font-bold text-navy overflow-hidden flex-shrink-0">
               {e.profilePhotoUrl ? (
@@ -158,7 +158,7 @@ export default function InspireChallenge() {
     }
   }
 
-  if (!today) return <div className="py-10 text-center text-navy/50">Loading…</div>;
+  if (!today) return <div className="py-10 text-center text-navy/60">Loading…</div>;
 
   if (!today.isLaunched) {
     return (
@@ -229,11 +229,11 @@ export default function InspireChallenge() {
 
       <div className="card p-4 grid grid-cols-2 gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-navy/50">Your Name</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-navy/60">Your Name</p>
           <p className="text-sm text-navy mt-1">{user?.fullName}</p>
         </div>
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-navy/50">Date</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-navy/60">Date</p>
           <p className="text-sm text-navy mt-1">{ptDateStringNow()}</p>
         </div>
       </div>
@@ -280,7 +280,7 @@ export default function InspireChallenge() {
             />
           ))}
         </div>
-        <p className="text-xs text-navy/50">
+        <p className="text-xs text-navy/60">
           You must send a screenshot of your screen time in the WhatsApp group chat as proof or you will receive zero points for this category.
         </p>
       </CategoryCard>
@@ -288,14 +288,14 @@ export default function InspireChallenge() {
       <CategoryCard title="Mindfulness" points="up to 3 pts" subtitle="1 pt per 5-min session · Yoga, meditation, breathwork, etc. · Max 3">
         <div className="flex items-center gap-3">
           <SessionSelector max={3} value={entry.mindfulnessSessions} onChange={(v) => update('mindfulnessSessions', v)} />
-          <span className="text-sm text-navy/50">sessions</span>
+          <span className="text-sm text-navy/60">sessions</span>
         </div>
       </CategoryCard>
 
       <CategoryCard title="Reading" points="1 pt per 30 min" subtitle="How many 30-minute reading sessions today?">
         <div className="flex items-center gap-3">
           <SessionSelector max={4} value={entry.readingSessions} onChange={(v) => update('readingSessions', v)} />
-          <span className="text-sm text-navy/50">× 30 min</span>
+          <span className="text-sm text-navy/60">× 30 min</span>
         </div>
       </CategoryCard>
 

@@ -31,7 +31,7 @@ export default function CustomGoalCard({ goal, onRefresh, onCelebrate }) {
         <div className="flex-1">
           <h3 className="font-semibold text-navy">{goal.name}</h3>
           {measureType !== 'yesno' && (
-            <p className="text-sm text-navy/50">
+            <p className="text-sm text-navy/60">
               {current} / {target}
               {measureType === 'timer' ? ' min' : ''}
             </p>

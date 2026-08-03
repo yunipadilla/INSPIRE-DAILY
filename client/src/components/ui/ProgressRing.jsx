@@ -45,7 +45,7 @@ export default function ProgressRing({
         {children ?? (
           <>
             <span className="text-sm font-extrabold text-navy leading-none">{Math.round(pct)}%</span>
-            {label && <span className="text-[9px] text-navy/50 font-semibold uppercase mt-0.5">{label}</span>}
+            {label && <span className="text-[9px] text-navy/60 font-semibold uppercase mt-0.5">{label}</span>}
           </>
         )}
       </div>

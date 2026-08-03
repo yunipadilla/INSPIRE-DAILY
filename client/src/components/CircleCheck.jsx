@@ -14,7 +14,7 @@ export default function CircleCheck({ label, sublabel, checked, onChange, points
       </span>
       <span className="flex-1">
         <span className="block text-sm text-navy">{label}</span>
-        {sublabel && <span className="block text-xs text-navy/50 mt-0.5">{sublabel}</span>}
+        {sublabel && <span className="block text-xs text-navy/60 mt-0.5">{sublabel}</span>}
       </span>
       {points && <span className="text-sm font-bold text-warning whitespace-nowrap">{points}</span>}
     </button>

@@ -37,7 +37,7 @@ export default function ReadingGoalCard({ goal, onRefresh, onCelebrate }) {
               <span className="text-sm font-medium text-navy">
                 {b.title} {b.completed && '✅'}
               </span>
-              <span className="text-xs text-navy/50">
+              <span className="text-xs text-navy/60">
                 {b.currentPage}/{b.totalPages} pages
               </span>
             </div>

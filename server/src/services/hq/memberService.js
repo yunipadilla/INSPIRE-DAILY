@@ -113,8 +113,13 @@ export async function getMemberProfile(id) {
       [id]
     ),
     query(
-      `select id, badge_type, name, description, icon_emoji, earned_date
-         from badges where user_id = $1 order by earned_date desc`,
+      `select b.id, b.badge_type, b.name, b.description, b.icon_emoji, b.earned_date,
+              b.reason, b.source, b.awarded_by,
+              u.first_name as awarded_by_first_name, u.last_name as awarded_by_last_name
+         from badges b
+         left join users u on u.id = b.awarded_by
+        where b.user_id = $1
+        order by b.earned_date desc`,
       [id]
     ),
     query(

@@ -10,9 +10,9 @@ export default function TaskBoardCard({ task, onSignUp, signingUp }) {
         </span>
       </div>
       {task.description && <p className="text-sm text-navy/60">{task.description}</p>}
-      <p className="text-xs text-navy/40">Posted by {task.postedByName}</p>
+      <p className="text-xs text-navy/60">Posted by {task.postedByName}</p>
       {task.mySignup ? (
-        <div className="text-xs font-semibold text-navy/50">Already signed up</div>
+        <div className="text-xs font-semibold text-navy/60">Already signed up</div>
       ) : (
         <button
           onClick={() => onSignUp(task.id)}

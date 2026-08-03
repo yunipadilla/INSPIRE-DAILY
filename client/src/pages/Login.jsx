@@ -68,7 +68,7 @@ export default function Login() {
             <div className="rise-in stagger-3">
               <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
               <div className="text-right mt-1.5">
-                <Link to="/forgot-password" className="text-xs font-semibold text-blue hover:opacity-80 transition-opacity">
+                <Link to="/forgot-password" className="text-xs font-semibold text-link hover:opacity-80 transition-opacity">
                   Forgot password?
                 </Link>
               </div>
@@ -93,7 +93,7 @@ export default function Login() {
 
           <p className="rise-in stagger-4 text-sm text-navy/55 text-center mt-6">
             Don't have an account?{' '}
-            <Link to="/signup" className="font-semibold text-blue hover:opacity-80 transition-opacity">
+            <Link to="/signup" className="font-semibold text-link hover:opacity-80 transition-opacity">
               Sign up
             </Link>
           </p>

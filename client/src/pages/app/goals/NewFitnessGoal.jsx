@@ -88,13 +88,13 @@ export default function NewFitnessGoal() {
       <div className="flex gap-2 pt-2 mb-4">
         <button
           onClick={() => setSubType('daily')}
-          className={`pressable flex-1 rounded-full py-2 text-sm font-semibold transition-colors ${subType === 'daily' ? 'btn-bubble gradient-goals text-navy' : 'border border-[#e5e5e5] text-navy/60'}`}
+          className={`pressable flex-1 rounded-full py-2 text-sm font-semibold transition-colors ${subType === 'daily' ? 'btn-bubble gradient-goals text-navy' : 'border border-border/16 text-navy/60'}`}
         >
           Daily Target
         </button>
         <button
           onClick={() => setSubType('weekly')}
-          className={`pressable flex-1 rounded-full py-2 text-sm font-semibold transition-colors ${subType === 'weekly' ? 'btn-bubble gradient-goals text-navy' : 'border border-[#e5e5e5] text-navy/60'}`}
+          className={`pressable flex-1 rounded-full py-2 text-sm font-semibold transition-colors ${subType === 'weekly' ? 'btn-bubble gradient-goals text-navy' : 'border border-border/16 text-navy/60'}`}
         >
           Weekly Schedule
         </button>
@@ -117,7 +117,7 @@ export default function NewFitnessGoal() {
           <Field label="Rest days allowed per week">
             <input type="number" min="0" max="6" className="input" value={restDaysPerWeek} onChange={(e) => setRestDaysPerWeek(e.target.value)} />
           </Field>
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
           <button type="submit" disabled={submitting} className="btn-bubble w-full py-3 text-navy gradient-goals">
             {submitting ? 'Creating…' : 'Create Fitness Goal'}
           </button>
@@ -136,7 +136,7 @@ export default function NewFitnessGoal() {
                 />
               ))}
               {activities.length < 3 && (
-                <button type="button" onClick={() => setActivities((a) => [...a, ''])} className="text-sm font-semibold text-[#818cf8]">
+                <button type="button" onClick={() => setActivities((a) => [...a, ''])} className="text-sm font-semibold text-primary">
                   + Add activity
                 </button>
               )}
@@ -159,7 +159,7 @@ export default function NewFitnessGoal() {
               ))}
             </div>
           </Field>
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <p className="text-sm text-danger">{error}</p>}
           <button type="submit" disabled={submitting} className="btn-bubble w-full py-3 text-navy gradient-goals">
             {submitting ? 'Creating…' : 'Create Fitness Goal'}
           </button>

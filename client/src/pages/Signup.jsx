@@ -99,7 +99,7 @@ export default function Signup() {
         <AuthLayout>
           <h1 className="text-xl font-bold text-navy mb-3">Almost there!</h1>
           <p className="text-navy/80">{result.message}</p>
-          <Link to="/login" className="inline-block mt-6 text-sm font-semibold text-blue">
+          <Link to="/login" className="inline-block mt-6 text-sm font-semibold text-link">
             Back to login
           </Link>
         </AuthLayout>
@@ -211,7 +211,7 @@ export default function Signup() {
       </form>
       <p className="text-sm text-navy/60 text-center mt-4">
         Already have an account?{' '}
-        <Link to="/login" className="font-semibold text-blue">
+        <Link to="/login" className="font-semibold text-link">
           Log in
         </Link>
       </p>
@@ -227,7 +227,7 @@ function Field({ label, required, hint, children }) {
         {required && <span className="text-danger"> *</span>}
       </label>
       {children}
-      {hint && <p className="text-xs text-navy/50 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-navy/60 mt-1">{hint}</p>}
     </div>
   );
 }

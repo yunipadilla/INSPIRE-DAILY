@@ -27,7 +27,7 @@ const MEDAL = ['🥇', '🥈', '🥉'];
 
 function ActionStatusPill({ status }) {
   if (status === 'done') return <span className="text-xs font-bold text-success">✓ Done</span>;
-  if (status === 'rest_day') return <span className="text-xs font-bold text-navy/50">Rest day</span>;
+  if (status === 'rest_day') return <span className="text-xs font-bold text-navy/60">Rest day</span>;
   if (status === 'coming_soon' || status === 'hidden')
     return <span className="text-xs font-bold text-ink-muted">Coming soon</span>;
   return <span className="text-xs font-bold text-navy">Start →</span>;
@@ -97,7 +97,7 @@ export default function Home() {
       </div>
 
       <section>
-        <SectionHeader icon="⚡" iconBg="#fef3c7" title="Today's Focus" />
+        <SectionHeader icon="⚡" iconBg="rgb(var(--color-warning) / 0.16)" title="Today's Focus" />
         {focus ? (
           <Link
             to={focus.to}
@@ -111,7 +111,7 @@ export default function Home() {
               <p className="text-base font-bold text-navy leading-tight">
                 {FOCUS_COPY[focus.key]?.title || focus.label}
               </p>
-              <p className="text-sm text-navy/50 mt-0.5">{FOCUS_COPY[focus.key]?.sub}</p>
+              <p className="text-sm text-navy/60 mt-0.5">{FOCUS_COPY[focus.key]?.sub}</p>
             </div>
             <span className="text-navy font-bold text-lg flex-shrink-0">→</span>
           </Link>
@@ -149,7 +149,7 @@ export default function Home() {
               <span className="font-semibold text-navy">
                 {summary.weeklyProgress.submitted} of {summary.weeklyProgress.eligibleDays} days logged
               </span>
-              <span className="text-navy/50">
+              <span className="text-navy/60">
                 {Math.round((summary.weeklyProgress.submitted / summary.weeklyProgress.eligibleDays) * 100)}%
               </span>
             </div>
@@ -169,7 +169,7 @@ export default function Home() {
         <SectionHeader icon="🎉" iconBg="rgb(var(--color-lavender) / 0.3)" title="Celebration Feed" />
         <div className="card divide-y divide-border/6 overflow-hidden">
           {feed.length === 0 && (
-            <p className="p-4 text-sm text-navy/50">No celebrations yet — check back soon!</p>
+            <p className="p-4 text-sm text-navy/60">No celebrations yet — check back soon!</p>
           )}
           {feed.map((item) => (
             <div key={item.id} className="p-3 flex items-center gap-3 text-sm text-navy">
@@ -182,14 +182,14 @@ export default function Home() {
 
       <section className="opacity-90">
         <SectionHeader icon="🏆" iconBg="rgb(var(--color-primary) / 0.16)" title="Leaderboard" />
-        {leaderboard?.guestNote && <p className="text-xs text-navy/50 mb-2">{leaderboard.guestNote}</p>}
+        {leaderboard?.guestNote && <p className="text-xs text-navy/60 mb-2">{leaderboard.guestNote}</p>}
         <div className="card divide-y divide-border/6 overflow-hidden">
           {leaderboard?.entries.map((e, i) => (
             <div
               key={e.id}
               className={`flex items-center gap-3 p-3 ${e.isCurrentUser ? 'bg-primary/10' : ''}`}
             >
-              <span className="w-6 text-base text-center">{MEDAL[i] || <span className="text-sm font-bold text-navy/40">{e.rank}</span>}</span>
+              <span className="w-6 text-base text-center">{MEDAL[i] || <span className="text-sm font-bold text-navy/60">{e.rank}</span>}</span>
               <div className="w-9 h-9 rounded-full gradient-rainbow flex items-center justify-center text-xs font-bold text-white overflow-hidden flex-shrink-0">
                 {e.profilePhotoUrl ? (
                   <img src={e.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
@@ -207,7 +207,7 @@ export default function Home() {
             </div>
           ))}
           {leaderboard && leaderboard.entries.length === 0 && (
-            <p className="p-4 text-sm text-navy/50">No scores yet this month.</p>
+            <p className="p-4 text-sm text-navy/60">No scores yet this month.</p>
           )}
         </div>
       </section>

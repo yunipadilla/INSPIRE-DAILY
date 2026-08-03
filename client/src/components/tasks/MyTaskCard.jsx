@@ -29,7 +29,7 @@ export default function MyTaskCard({ signup, onComplete }) {
         </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <h3 className={`font-semibold text-navy ${isCompleted ? 'line-through text-navy/50' : ''}`}>
+            <h3 className={`font-semibold text-navy ${isCompleted ? 'line-through text-navy/60' : ''}`}>
               {signup.title}
             </h3>
             <span
@@ -45,7 +45,7 @@ export default function MyTaskCard({ signup, onComplete }) {
       </div>
 
       {isCompleted ? (
-        <p className="text-xs text-navy/40">
+        <p className="text-xs text-navy/60">
           {signup.hoursSpent ? `${signup.hoursSpent} hrs · ` : ''}
           Completed {signup.completedDate}
         </p>

@@ -46,7 +46,7 @@ export default function FitnessWeeklyGoalCard({ goal, onRefresh, onCelebrate }) 
           {recap?.todaysActivity ? (
             <p className="text-sm text-navy/70">Today: {recap.todaysActivity}</p>
           ) : (
-            <p className="text-sm text-navy/50">Today is a rest day.</p>
+            <p className="text-sm text-navy/60">Today is a rest day.</p>
           )}
         </div>
       </div>
@@ -65,7 +65,7 @@ export default function FitnessWeeklyGoalCard({ goal, onRefresh, onCelebrate }) 
       ) : null}
 
       {recap && (
-        <p className="text-xs text-navy/50">
+        <p className="text-xs text-navy/60">
           {recap.completedThisWeek}/{recap.activeDaysCount} active days completed this week
         </p>
       )}

@@ -56,6 +56,7 @@ module.exports = {
         peach: token('--color-peach'),
         mint: token('--color-mint'),
         yellow: token('--color-yellow'),
+        link: token('--color-link'),
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

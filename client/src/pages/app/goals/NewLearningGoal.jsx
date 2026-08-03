@@ -45,7 +45,7 @@ export default function NewLearningGoal() {
         <Field label="Target date">
           <input type="date" className="input" value={targetDate} onChange={(e) => setTargetDate(e.target.value)} />
         </Field>
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
         <button type="submit" disabled={submitting} className="btn-bubble w-full py-3 text-navy gradient-goals">
           {submitting ? 'Creating…' : 'Create Learning Goal'}
         </button>

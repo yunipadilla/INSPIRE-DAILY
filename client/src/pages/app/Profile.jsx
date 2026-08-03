@@ -41,7 +41,7 @@ export default function Profile() {
     navigate('/login');
   }
 
-  if (!data) return <div className="py-10 text-center text-navy/50">Loading…</div>;
+  if (!data) return <div className="py-10 text-center text-navy/60">Loading…</div>;
 
   const { user, stats, badges, timeline, calendar, hasHQAccess } = data;
   const statValues = [stats.streakCount, stats.badgesEarned, stats.goalsCompleted, stats.daysInProgram];
@@ -84,7 +84,7 @@ export default function Profile() {
           icon="🏅"
           iconBg="rgb(var(--color-primary) / 0.16)"
           title="Badge Wall"
-          action={<span className="text-xs font-semibold text-navy/50">{totalBadges} earned</span>}
+          action={<span className="text-xs font-semibold text-navy/60">{totalBadges} earned</span>}
         />
         <div className="card p-4 space-y-4">
           {BADGE_CATEGORIES.map((cat) => (
@@ -113,11 +113,11 @@ export default function Profile() {
         <div className="card p-4 grid grid-cols-2 divide-x divide-border/8 text-center">
           <div>
             <div className="text-2xl font-extrabold text-navy">{stats.goalsCompleted}</div>
-            <div className="text-[10px] uppercase text-navy/50 font-semibold">Goals completed</div>
+            <div className="text-[10px] uppercase text-navy/60 font-semibold">Goals completed</div>
           </div>
           <div>
             <div className="text-2xl font-extrabold text-navy">{stats.tasksCompleted}</div>
-            <div className="text-[10px] uppercase text-navy/50 font-semibold">Tasks completed</div>
+            <div className="text-[10px] uppercase text-navy/60 font-semibold">Tasks completed</div>
           </div>
         </div>
       </section>
@@ -134,7 +134,7 @@ export default function Profile() {
               />
             ))}
           </div>
-          <p className="text-[10px] text-navy/40 mt-2 uppercase tracking-wide">Daily Scores submitted</p>
+          <p className="text-[10px] text-navy/60 mt-2 uppercase tracking-wide">Daily Scores submitted</p>
         </div>
       </section>
 
@@ -148,7 +148,7 @@ export default function Profile() {
                 <div className="flex-1 min-w-0">
                   <p className="truncate">{item.description}</p>
                 </div>
-                <span className="text-xs text-navy/40 whitespace-nowrap">
+                <span className="text-xs text-navy/60 whitespace-nowrap">
                   {formatDateLabel(item.occurredAt.slice(0, 10))}
                 </span>
               </div>
@@ -182,7 +182,7 @@ function StatCard({ value, label, emoji, accent }) {
     <div className="card p-3" style={{ borderTop: `3px solid ${accent}` }}>
       <div className="text-base mb-0.5">{emoji}</div>
       <div className="text-lg font-extrabold text-navy">{value}</div>
-      <div className="text-[10px] uppercase text-navy/50">{label}</div>
+      <div className="text-[10px] uppercase text-navy/60">{label}</div>
     </div>
   );
 }

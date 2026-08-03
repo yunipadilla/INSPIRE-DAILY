@@ -34,7 +34,7 @@ export default function FitnessDailyGoalCard({ goal, onRefresh, onCelebrate }) {
         <ProgressRing value={completedCount} max={goal.details.totalDays || 1} size={52} strokeWidth={5} colorVar="--color-mint" />
         <div className="flex-1">
           <h3 className="font-semibold text-navy">{goal.name}</h3>
-          <p className="text-sm text-navy/50">{goal.details.dailyTarget}</p>
+          <p className="text-sm text-navy/60">{goal.details.dailyTarget}</p>
         </div>
       </div>
 

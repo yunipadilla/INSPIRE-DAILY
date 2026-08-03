@@ -31,7 +31,7 @@ export default function LearningGoalCard({ goal, onRefresh, onCelebrate }) {
         <ProgressRing value={totalMinutes} max={goal.details.targetMinutes || 1} size={52} strokeWidth={5} colorVar="--color-primary" />
         <div className="flex-1">
           <h3 className="font-semibold text-navy">{goal.name}</h3>
-          <p className="text-sm text-navy/50">
+          <p className="text-sm text-navy/60">
             {totalMinutes} / {goal.details.targetMinutes} min
           </p>
         </div>

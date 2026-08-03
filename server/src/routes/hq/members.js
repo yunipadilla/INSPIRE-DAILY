@@ -119,6 +119,9 @@ router.get('/:id', async (req, res) => {
       description: b.description,
       iconEmoji: b.icon_emoji,
       earnedDate: b.earned_date,
+      reason: b.reason,
+      source: b.source,
+      awardedByName: b.awarded_by_first_name ? `${b.awarded_by_first_name} ${b.awarded_by_last_name}` : null,
     })),
     timeline: profile.timeline.map((t) => ({
       type: t.type,

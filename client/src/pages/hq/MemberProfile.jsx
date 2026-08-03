@@ -8,11 +8,13 @@ import ErrorState from '../../components/ui/ErrorState';
 import Skeleton from '../../components/ui/Skeleton';
 import ProgressBar from '../../components/ui/ProgressBar';
 import Medal from '../../components/ui/Medal';
+import AwardBadgeModal from '../../components/hq/AwardBadgeModal';
 
 export default function MemberProfile() {
   const { id } = useParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState(false);
+  const [showAwardModal, setShowAwardModal] = useState(false);
 
   function load() {
     setError(false);
@@ -135,15 +137,36 @@ export default function MemberProfile() {
       </section>
 
       <section>
-        <h2 className="text-sm font-bold text-navy uppercase tracking-wide mb-2">Badges</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-sm font-bold text-navy uppercase tracking-wide">Badges</h2>
+          <button
+            type="button"
+            onClick={() => setShowAwardModal(true)}
+            className="pressable text-xs font-bold px-3 py-1.5 rounded-full bg-primary/12 text-primary"
+          >
+            + Award Badge
+          </button>
+        </div>
         {badges.length === 0 ? (
           <EmptyState icon="🏅" title="No badges earned yet" />
         ) : (
           <div className="flex gap-3 flex-wrap">
             {badges.map((b) => (
-              <Medal key={b.id} icon={b.iconEmoji} category={b.badgeType} title={`${b.name} — ${b.earnedDate}`} />
+              <Medal
+                key={b.id}
+                icon={b.iconEmoji}
+                category={b.badgeType}
+                title={`${b.name} — earned ${b.earnedDate}${b.awardedByName ? ` — awarded by ${b.awardedByName}` : ''}${b.reason ? ` — "${b.reason}"` : ''}`}
+              />
             ))}
           </div>
+        )}
+        {showAwardModal && (
+          <AwardBadgeModal
+            memberId={id}
+            onClose={() => setShowAwardModal(false)}
+            onAwarded={load}
+          />
         )}
       </section>
 

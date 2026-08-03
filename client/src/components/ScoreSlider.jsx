@@ -11,7 +11,7 @@ export default function ScoreSlider({ label, question, lowLabel, highLabel, valu
 
   return (
     <div className="card p-5">
-      <p className="text-xs font-bold uppercase tracking-wide text-navy/50">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-navy/60">{label}</p>
       <p className="text-sm font-medium text-navy mt-1 mb-7">{question}</p>
 
       <div className="relative">
@@ -40,7 +40,7 @@ export default function ScoreSlider({ label, question, lowLabel, highLabel, valu
         />
       </div>
 
-      <div className="flex justify-between text-xs text-navy/40 mt-1.5">
+      <div className="flex justify-between text-xs text-navy/60 mt-1.5">
         <span>1 — {lowLabel}</span>
         <span>10 — {highLabel}</span>
       </div>

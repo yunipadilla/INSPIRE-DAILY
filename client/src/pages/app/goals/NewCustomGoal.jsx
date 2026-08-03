@@ -54,12 +54,12 @@ export default function NewCustomGoal() {
               <label
                 key={m.value}
                 className={`block border rounded-lg p-3 cursor-pointer ${
-                  measureType === m.value ? 'border-[#d946ef] bg-[#f9a8d4]/10' : 'border-[#e5e5e5]'
+                  measureType === m.value ? 'border-lavender bg-lavender/12' : 'border-border/16'
                 }`}
               >
                 <input type="radio" name="measureType" className="hidden" checked={measureType === m.value} onChange={() => setMeasureType(m.value)} />
                 <div className="font-semibold text-navy text-sm">{m.label}</div>
-                <div className="text-xs text-navy/50">{m.desc}</div>
+                <div className="text-xs text-navy/60">{m.desc}</div>
               </label>
             ))}
           </div>
@@ -69,7 +69,7 @@ export default function NewCustomGoal() {
             <input type="number" min="1" className="input" value={target} onChange={(e) => setTarget(e.target.value)} required />
           </Field>
         )}
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
         <button type="submit" disabled={submitting} className="btn-bubble w-full py-3 text-navy gradient-goals">
           {submitting ? 'Creating…' : 'Create Custom Goal'}
         </button>

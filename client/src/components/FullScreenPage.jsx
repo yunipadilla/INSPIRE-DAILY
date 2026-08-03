@@ -13,10 +13,10 @@ export default function FullScreenPage({ title, backTo = '/app/goals', children 
       <header className="flex items-center gap-2 px-4 py-4 sticky top-0 bg-appbg z-10">
         <button
           onClick={() => navigate(backTo)}
-          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-black/5"
+          className="w-9 h-9 flex items-center justify-center rounded-full text-navy hover:bg-surface-soft"
           aria-label="Back"
         >
-          <ChevronLeft size={22} color="#1a1a2e" />
+          <ChevronLeft size={22} />
         </button>
         <h1 className="text-lg font-bold text-navy">{title}</h1>
       </header>

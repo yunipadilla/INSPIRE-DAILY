@@ -68,7 +68,7 @@ export default function DailyScores() {
   }
 
   if (!today) {
-    return <div className="py-10 text-center text-navy/50">Loading…</div>;
+    return <div className="py-10 text-center text-navy/60">Loading…</div>;
   }
 
   if (today.isSunday) {
@@ -125,37 +125,45 @@ export default function DailyScores() {
     <div className="py-4 space-y-5">
       <Header />
 
-      {today.catchUp.available && !catchUpMode && (
-        <div className="rounded-xl bg-warning/10 border border-warning/25 p-3 text-sm text-navy/80 flex items-center justify-between gap-3">
-          <span>
-            <span className="font-semibold text-warning">Missed {formatDateLabel(today.catchUp.date)}?</span> You
-            can still submit it as a catch-up entry, due by {today.catchUp.deadlineLabel}.
-          </span>
-          <button
-            type="button"
-            onClick={() => setCatchUpMode(true)}
-            className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full bg-warning/20 text-warning pressable"
-          >
-            Catch up instead
-          </button>
-        </div>
-      )}
-
-      {catchUpMode && (
-        <div className="rounded-xl bg-warning/10 border border-warning/25 p-3 text-sm text-navy/80 flex items-center justify-between gap-3">
-          <span>
-            <span className="font-semibold text-warning">Catch-up entry —</span> this submission is for{' '}
-            <span className="font-semibold">{formatDateLabel(today.catchUp.date)}</span>.
-          </span>
+      <div className="space-y-2">
+        <div className="flex gap-2" role="group" aria-label="Which day is this entry for?">
           <button
             type="button"
             onClick={() => setCatchUpMode(false)}
-            className="flex-shrink-0 text-xs font-bold px-3 py-1.5 rounded-full bg-surface-elevated text-warning border border-warning/25 pressable"
+            aria-pressed={!catchUpMode}
+            className={`flex-1 rounded-full py-2.5 text-sm font-bold pressable transition-colors ${
+              !catchUpMode ? 'bg-blue text-white shadow-sm' : 'bg-surface-soft text-navy/60'
+            }`}
           >
-            Submit for today instead
+            Today
           </button>
+          {today.catchUp.available ? (
+            <button
+              type="button"
+              onClick={() => setCatchUpMode(true)}
+              aria-pressed={catchUpMode}
+              className={`flex-1 rounded-full py-2.5 text-sm font-bold pressable transition-colors ${
+                catchUpMode ? 'bg-warning text-white shadow-sm' : 'bg-surface-soft text-navy/60'
+              }`}
+            >
+              Catch Up For Yesterday
+            </button>
+          ) : (
+            <div
+              className="flex-1 rounded-full py-2.5 text-xs font-semibold text-center bg-surface-soft text-navy/60 flex items-center justify-center px-2"
+              aria-disabled="true"
+            >
+              Yesterday's submission window has closed.
+            </div>
+          )}
         </div>
-      )}
+        {catchUpMode && (
+          <p className="text-xs text-warning font-semibold px-1">
+            This entry will be submitted for {formatDateLabel(today.catchUp.date)}, due by{' '}
+            {today.catchUp.deadlineLabel}.
+          </p>
+        )}
+      </div>
 
       <div className="card p-5 gradient-daily-scores flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -196,8 +204,8 @@ export default function DailyScores() {
 
       <div className="card p-6 space-y-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-navy/50">Did you earn your way today?</p>
-          <p className="text-xs text-navy/50 mt-1">
+          <p className="text-xs font-bold uppercase tracking-wide text-navy/60">Did you earn your way today?</p>
+          <p className="text-xs text-navy/60 mt-1">
             Earning your way means contributing to your environment by being the best version of yourself AND
             putting in genuine effort toward your goals and work.
           </p>
@@ -235,7 +243,7 @@ export default function DailyScores() {
 
       <div>
         <h2 className="text-lg font-bold text-navy">Daily Ratings</h2>
-        <p className="text-sm text-navy/50 mb-3">Most people live in the 4–7 range — that is normal. Where do you want to be?</p>
+        <p className="text-sm text-navy/60 mb-3">Most people live in the 4–7 range — that is normal. Where do you want to be?</p>
         <div className="space-y-3">
           {QUESTIONS.map((q) => (
             <ScoreSlider
@@ -294,7 +302,7 @@ function Header() {
         <span className="text-navy">Daily </span>
         <span className="text-blue">Scores</span>
       </h1>
-      <p className="text-sm text-navy/50 italic">A quiet moment to reflect on your day.</p>
+      <p className="text-sm text-navy/60 italic">A quiet moment to reflect on your day.</p>
     </div>
   );
 }
@@ -302,9 +310,9 @@ function Header() {
 function Field({ label, hint, children }) {
   return (
     <div>
-      <label className="block text-xs font-bold uppercase tracking-wide text-navy/50 mb-1">{label}</label>
+      <label className="block text-xs font-bold uppercase tracking-wide text-navy/60 mb-1">{label}</label>
       {children}
-      {hint && <p className="text-xs text-navy/40 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-navy/60 mt-1">{hint}</p>}
     </div>
   );
 }
