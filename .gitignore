@@ -5,3 +5,6 @@ node_modules/
 dist/
 build/
 .DS_Store
+
+# Base44 migration import manifests — participant identifiers/dates, never committed.
+server/scripts/.migration-logs/
