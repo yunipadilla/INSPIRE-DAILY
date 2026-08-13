@@ -184,3 +184,31 @@ Nothing else. Every other historical fact (Daily Scores, goals, goal books/logs,
 ## Ongoing development rule (reconfirmed)
 
 Inspect → Modify locally → Test → Commit → Review → Push → Render deploy → Production smoke test → Clean disposable test data — reconfirmed against the live `CLAUDE.md` this session, unchanged. This deliverable followed it exactly: inspected both data models fresh (no reliance on prior-session memory), built the tool, tested it against a disposable account (created via the real signup flow, then fully deleted — verified real user count unchanged), and committed locally (`4e9fe80`). **Not pushed, not deployed**, per your instruction to stop here.
+
+---
+
+## 13. Real-data dry-run (this session) — findings, still no import
+
+Real Base44 CSV exports (12 files) were obtained and staged at `~/Downloads/base44-export/` (outside the repo, never committed). `server/scripts/migrationDryRun.js` was rewritten to parse them directly — CSV, not JSON, is the real Base44 export format, and it embeds multi-line quoted fields (e.g. Daily Scores "challenges" text) that a naive line-count misreads; a dependency-free RFC4180 parser was added to handle this correctly. Full run output, findings below; **no writes occurred** (verified by inspection — the script only ever calls `query()` with `select`).
+
+**Dataset:** 25 Base44 users, 655 DailyScore rows, 530 SummerEntry rows, 47 GoalLog, 16 Badge, 8 GoalBook, 7 Goal, 28 SignupRecord, 3 Connection, 2 InternshipTask, 1 TaskSignup, 1 DailyUpdate. All counts confirmed by direct parse (naive `wc -l` misreports several of these due to embedded newlines — do not trust it as a row count for this export).
+
+**Identity reconciliation:** 26 Base44 identities (25 User rows + 1 activity-only address) against the 4 real accounts in the live database → **2 MATCHED** (`ma@inspiringchildren.org`, `pa@inspiringchildren.org`), **23 NOT_YET_SIGNED_UP**, **0 AMBIGUOUS**, **1 CONFLICT** (`robertoh1106@gmail.com` — Base44 first name "Bert" vs current "Roberto"; same email, same last name; 4 Base44 DailyScore rows are waiting behind this one until a human confirms it's the same person). `yunipadilla05@gmail.com` (a real live account) has **zero footprint anywhere in the Base44 export** — confirmed by direct search across every entity — nothing to reconcile for it.
+
+**SignupRecord anomalies (confirmed, supporting evidence only, never used for matching):** `ma@inspiringchildren.org` has two conflicting SignupRecord rows under one email (`"joseph smith"` and `"Yuni Padilla"`) — direct evidence this source is unreliable for identity. `pa@inspiringchildren.rog` (typo, missing the second `.org`) and `yunipadilla05@gmail.com` both appear in SignupRecord with no matching Base44 User row at all.
+
+**Duplicate (user, date) groups — all flagged for human review, none auto-resolved:** 6 DailyScore groups (13 rows, all content-differing, not just timestamp variants) and 20 content-differing + 3 identical SummerEntry groups. A recommended winner (latest `updated_date`, tie-broken by `created_date`/id) is computed and shown per group, but every content-differing group is marked UNRESOLVED pending sign-off — never auto-applied.
+
+**Orphan Goal references:** 8 distinct orphan `goal_id`s across 2 users (`dreambigayenxavia@gmail.com`, `ma@inspiringchildren.org`). 2 are backed by a `GoalBook` row (definitive proof of type `reading` — safe to reconstruct a minimal parent goal). The other 6 have only `GoalLog` rows with no type signal beyond `log_type` shape (`session`/`completed`/`progress`) — recommendation is to archive the raw facts without a reconstructed type, not guess.
+
+**SummerEntry field mapping — confirmed schema drift mid-program:** ~432 of 530 rows only populate an older Base44 field set (`mindfulness`/`journaling`/`phone_time_under_2h`/`healthy_meal`/binary `sleep_hours`); the newer ~98 rows additionally populate `sleep_bed_before_10`/`mindfulness_sessions`/`reading_sessions`/`screen_time`/`cold_plunge`, which map far more directly onto the rebuilt schema. `hydration`/`exercise` map cleanly across the whole range. `sleep8h`, `nutrition`, and `screenTimeTier` remain ambiguous candidate mappings (documented in the script header) — computed but never auto-applied.
+
+**Volunteer hours:** confirmed single authoritative source — `daily_scores.volunteer_hours` from Base44 `DailyScore.volunteer_hours`. Base44 `SummerEntry.volunteer_hours` has no rebuilt counterpart at all (`summer_entries` has no such column) and is excluded outright — no double-counting risk because there's nowhere to put it.
+
+**Tasks & social data:** `TaskSignup.csv` (1 row) is safe to migrate later — its orphaned `task_id` is recoverable because the row itself carries `task_title`. `InternshipTask.csv` (2 rows), `Connection.csv` (3 rows, all `pending`, one referencing a clearly non-participant test address), and `DailyUpdate.csv` (1 row of real personal journal text) are all classified **not worth migrating now** — dead/unused features in the rebuild, unrelated to the streak/badge/points objective.
+
+**Schema requirement, confirmed against the live constraint this session:** `badges_source_check: CHECK ((source = ANY (ARRAY['manual'::text, 'automatic'::text])))`, 0 existing badge rows. The `'legacy'`-widening SQL proposed in §9/§10 above is unchanged and still not applied.
+
+**Not part of this dry-run, worth a human decision before the next step:** several Base44 users have `streak_last_date` as recent as **2026-08-13 (today)** — direct evidence Base44 is still receiving live submissions in parallel with the rebuild, not a frozen historical snapshot. Re-export close to the actual import date to minimize the gap. One Base44 identity, `service+b246638d-…@no-reply.base44.com`, is a Base44 system/service address with 1 stray DailyScore row, not a real participant — exclude it explicitly when building the real import script.
+
+**Still not done:** no import script exists yet, no schema change has been applied, no production row has been written on behalf of any Base44 identity. This section documents a dry-run against real data, not a migration.
