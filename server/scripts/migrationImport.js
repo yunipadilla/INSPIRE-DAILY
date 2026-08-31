@@ -52,7 +52,7 @@ import {
 } from './lib/base44Csv.js';
 import {
   IDENTITY_OVERRIDES, DAILY_SCORE_RESOLUTIONS, SUMMER_ENTRY_HOLDS,
-  GOAL_ORPHAN_RECONSTRUCT, dailyScoreKey, summerEntryKey, goalOrphanKey,
+  GOAL_ORPHAN_RECONSTRUCT, BADGE_TYPE_OVERRIDES, dailyScoreKey, summerEntryKey, goalOrphanKey, badgeKey,
 } from './lib/approvedResolutions.js';
 
 // ─── CLI args / write-mode gate ─────────────────────────────────────────────
@@ -158,6 +158,18 @@ async function getBadgesSourceConstraintAllowsLegacy() {
   );
   return Boolean(rows[0] && /'legacy'/.test(rows[0].def));
 }
+async function legacyGoalFactsTableExists() {
+  const { rows } = await query(
+    `select 1 from information_schema.tables where table_schema = 'public' and table_name = 'legacy_goal_facts'`
+  );
+  return rows.length > 0;
+}
+async function existingLegacyGoalIds(userId) {
+  // Idempotency: a second run must recognize a goal_id already archived and
+  // skip it rather than duplicate the facts.
+  const { rows } = await query(`select distinct legacy_goal_id from legacy_goal_facts where user_id = $1`, [userId]);
+  return new Set(rows.map((r) => r.legacy_goal_id));
+}
 async function countInternshipTasksByTitle(title) {
   const { rows } = await query(`select id from internship_tasks where title = $1 limit 1`, [title]);
   return rows[0]?.id || null;
@@ -213,6 +225,19 @@ function classifyIdentities(base44, currentUsers) {
 
 // ─── Per-user import plan (single source of truth for both report + write) ──
 
+// The rebuilt schema CHECKs every slider into [1,10] (daily_scores_*_check).
+// Base44 has "Sunday rest day check-in" placeholder rows with blank sliders
+// — these are not real reflections (Sundays never require one, per the app's
+// own rule), so they are excluded outright rather than imported as a fake
+// zero-score submission or defaulted to a fabricated in-range value.
+const SLIDER_FIELDS = ['best_self', 'ceo_mindset', 'grit', 'happiness', 'sleep'];
+function hasValidSliders(row) {
+  return SLIDER_FIELDS.every((f) => {
+    const n = toNumOrNull(row[f]);
+    return n !== null && n >= 1 && n <= 10;
+  });
+}
+
 async function buildDailyScorePlan(email, base44, currentUserRow) {
   const rows = base44.dailyScoresByEmail.get(email) || [];
   const currentDates = await currentDailyScoreDates(currentUserRow.id);
@@ -225,6 +250,7 @@ async function buildDailyScorePlan(email, base44, currentUserRow) {
 
   const eligible = []; // { date, row }
   const held = []; // { date, rows, reason }
+  const invalid = []; // { date, rows, reason } — structurally not a real submission, not a business conflict
   const skippedExisting = [];
 
   for (const [date, group] of byDate) {
@@ -233,6 +259,10 @@ async function buildDailyScorePlan(email, base44, currentUserRow) {
       continue;
     }
     if (group.length === 1) {
+      if (!hasValidSliders(group[0])) {
+        invalid.push({ date, rows: group, reason: `blank/out-of-range slider value(s) — looks like a Base44 rest-day placeholder ("${group[0].challenges || ''}"), not a real submission; excluded, not fabricated.` });
+        continue;
+      }
       eligible.push({ date, row: group[0] });
       continue;
     }
@@ -242,10 +272,14 @@ async function buildDailyScorePlan(email, base44, currentUserRow) {
       continue;
     }
     const winner = resolution.decision === 'keep_older' ? pickOldest(group) : pickRecommendedWinner(group);
+    if (!hasValidSliders(winner)) {
+      invalid.push({ date, rows: group, reason: `resolved winner has blank/out-of-range slider value(s) — excluded, not fabricated.` });
+      continue;
+    }
     eligible.push({ date, row: winner, resolvedBy: resolution.decision });
   }
 
-  return { eligible, held, skippedExisting, currentDates };
+  return { eligible, held, invalid, skippedExisting, currentDates };
 }
 
 async function buildSummerEntryPlan(email, base44, currentUserRow) {
@@ -298,22 +332,36 @@ function buildGoalPlan(email, base44) {
     .find((u) => u.email === email)?.orphanGroups || [];
 
   const reconstructReading = [];
-  const archivedBlocked = [];
+  const archived = [];
   for (const g of orphans) {
     if (GOAL_ORPHAN_RECONSTRUCT.has(goalOrphanKey(email, g.goalId))) {
       reconstructReading.push(g);
     } else {
-      archivedBlocked.push(g);
+      archived.push(g);
     }
   }
 
-  return { normalGoals, reconstructReading, archivedBlocked };
+  return { normalGoals, reconstructReading, archived };
 }
+
+// The rebuilt schema CHECKs badge_type into exactly ('event','skills','staff',
+// 'milestone') — badges_badge_type_check. Base44's own badge_type values do
+// not all map onto this 4-value enum (e.g. 'achievement' has no rebuilt
+// counterpart). A badge whose type isn't a valid enum value is held for a
+// human to pick the correct category — never guessed/auto-mapped, since that
+// determines which of 4 fixed UI categories the badge is filed under.
+const VALID_BADGE_TYPES = new Set(['event', 'skills', 'staff', 'milestone']);
 
 function buildBadgePlan(email, base44, currentBadgeKeySet) {
   const rows = base44.badgesByEmail.get(email) || [];
-  const eligible = rows.filter((b) => !currentBadgeKeySet.has(`${b.badge_type}::${b.name}`));
-  return { eligible };
+  const notAlreadyPresent = rows.filter((b) => !currentBadgeKeySet.has(`${b.badge_type}::${b.name}`));
+  const resolved = notAlreadyPresent.map((b) => {
+    const override = BADGE_TYPE_OVERRIDES.get(badgeKey(email, b.name));
+    return override ? { ...b, resolvedBadgeType: override.badgeType, badgeTypeOverrideReason: override.reason } : { ...b, resolvedBadgeType: b.badge_type };
+  });
+  const eligible = resolved.filter((b) => VALID_BADGE_TYPES.has(b.resolvedBadgeType));
+  const heldInvalidType = resolved.filter((b) => !VALID_BADGE_TYPES.has(b.resolvedBadgeType));
+  return { eligible, heldInvalidType };
 }
 
 function buildTaskPlan(email, base44) {
@@ -439,6 +487,27 @@ async function writeUserImport(client, userId, plan) {
     }
   }
 
+  // Archived historical goal facts — legacy_goal_facts only, NEVER a `goals`
+  // row. No fake live goal is created; nothing here is reachable from
+  // listGoalsForUser/getGoal/the goals cron agent, so it structurally cannot
+  // appear in participant Goals UI or affect progress calculations.
+  if (plan.goals.archived.length) {
+    const alreadyArchived = await existingLegacyGoalIds(userId);
+    for (const g of plan.goals.archived) {
+      if (alreadyArchived.has(g.goalId)) continue; // idempotent re-run
+      for (const l of g.logs) {
+        const { rows: factRows } = await client.query(
+          `insert into legacy_goal_facts
+            (user_id, legacy_goal_id, legacy_log_id, date, log_type, activity, value, note, source, import_batch)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,'base44_orphan_import',$9)
+           returning id`,
+          [userId, g.goalId, l.id || null, l.date, l.log_type || null, l.activity || null, toNumOrNull(l.value), l.note || null, BATCH_ID]
+        );
+        recordInsert('legacy_goal_facts', factRows[0].id, userId, `${g.goalId}/${l.id}`);
+      }
+    }
+  }
+
   const legacyAllowed = await getBadgesSourceConstraintAllowsLegacy();
   for (const b of plan.badges.eligible) {
     if (!legacyAllowed) {
@@ -446,11 +515,11 @@ async function writeUserImport(client, userId, plan) {
       continue;
     }
     const { rows: badgeRows } = await client.query(
-      `insert into badges (user_id, badge_type, name, description, icon_emoji, earned_date, awarded_by, reason, source)
-       values ($1,$2,$3,$4,$5,$6,null,null,'legacy') returning id`,
-      [userId, b.badge_type, b.name, b.description || null, b.icon_emoji || null, b.earned_date || ptDateString()]
+      `insert into badges (user_id, badge_type, name, description, icon_emoji, earned_date, trigger_key, awarded_by, reason, source)
+       values ($1,$2,$3,$4,$5,$6,$7,null,null,'legacy') returning id`,
+      [userId, b.resolvedBadgeType, b.name, b.description || null, b.icon_emoji || null, b.earned_date || ptDateString(), b.trigger_key || null]
     );
-    recordInsert('badges', badgeRows[0].id, userId, `${b.badge_type}::${b.name}`);
+    recordInsert('badges', badgeRows[0].id, userId, `${b.resolvedBadgeType}::${b.name}`);
   }
 
   for (const t of plan.tasks.eligible) {
@@ -507,11 +576,12 @@ async function main() {
   }
 
   const legacyAllowed = await getBadgesSourceConstraintAllowsLegacy();
+  const legacyGoalFactsReady = await legacyGoalFactsTableExists();
 
-  let totalDsEligible = 0, totalDsSkipped = 0, totalDsHeld = 0;
+  let totalDsEligible = 0, totalDsSkipped = 0, totalDsHeld = 0, totalDsInvalid = 0;
   let totalSeEligible = 0, totalSeSkipped = 0, totalSeHeld = 0;
-  let totalGoalsNormal = 0, totalGoalsReconstructed = 0, totalGoalsArchivedBlocked = 0;
-  let totalBadgesEligible = 0;
+  let totalGoalsNormal = 0, totalGoalsReconstructed = 0, totalGoalsArchivedGroups = 0, totalLegacyGoalFacts = 0;
+  let totalBadgesEligible = 0, totalBadgesHeldInvalidType = 0;
   let totalTasksEligible = 0;
 
   for (const { email, currentUser, override } of emailsToProcess) {
@@ -526,16 +596,19 @@ async function main() {
     const profileDiff = buildProfileDiff(email, base44, currentUser, override);
     const counts = await currentCounts(currentUser.id);
 
-    totalDsEligible += dsPlan.eligible.length; totalDsSkipped += dsPlan.skippedExisting.length; totalDsHeld += dsPlan.held.length;
+    totalDsEligible += dsPlan.eligible.length; totalDsSkipped += dsPlan.skippedExisting.length; totalDsHeld += dsPlan.held.length; totalDsInvalid += dsPlan.invalid.length;
     totalSeEligible += sePlan.eligible.length; totalSeSkipped += sePlan.skippedExisting.length; totalSeHeld += sePlan.held.length;
-    totalGoalsNormal += goalPlan.normalGoals.length; totalGoalsReconstructed += goalPlan.reconstructReading.length; totalGoalsArchivedBlocked += goalPlan.archivedBlocked.length;
-    totalBadgesEligible += badgePlan.eligible.length;
+    const factCountForUser = goalPlan.archived.reduce((s, g) => s + g.logCount, 0);
+    totalGoalsNormal += goalPlan.normalGoals.length; totalGoalsReconstructed += goalPlan.reconstructReading.length;
+    totalGoalsArchivedGroups += goalPlan.archived.length; totalLegacyGoalFacts += factCountForUser;
+    totalBadgesEligible += badgePlan.eligible.length; totalBadgesHeldInvalidType += badgePlan.heldInvalidType.length;
     totalTasksEligible += taskPlan.eligible.length;
 
     if (override) console.log(`  Identity: OVERRIDE APPLIED (${override.reason}) — profile name will NEVER be overwritten.`);
 
-    console.log(`  Daily Scores: before=${counts.daily_scores}  eligible_insert=${dsPlan.eligible.length}  skipped_existing=${dsPlan.skippedExisting.length}  held_ambiguous=${dsPlan.held.length}  after=${Number(counts.daily_scores) + dsPlan.eligible.length}`);
+    console.log(`  Daily Scores: before=${counts.daily_scores}  eligible_insert=${dsPlan.eligible.length}  skipped_existing=${dsPlan.skippedExisting.length}  held_ambiguous=${dsPlan.held.length}  excluded_invalid=${dsPlan.invalid.length}  after=${Number(counts.daily_scores) + dsPlan.eligible.length}`);
     for (const h of dsPlan.held) console.log(`    HELD ${h.date}: ${h.rows.length} rows — ${h.reason}`);
+    for (const inv of dsPlan.invalid) console.log(`    EXCLUDED ${inv.date}: ${inv.reason}`);
 
     const mergedDates = [...new Set([...dsPlan.currentDates, ...dsPlan.eligible.map((e) => e.date)])].sort();
     const projectedStreak = calculateStreak(mergedDates, ptDateString());
@@ -549,12 +622,16 @@ async function main() {
     if (sePlan.eligible.length) console.log(`    Base44 point total (context only, not authoritative): ${base44Points}  |  projected canonical total: ${projectedPoints}`);
     for (const h of sePlan.held) console.log(`    HELD ${h.date}: ${h.rows.length} rows — ${h.reason}`);
 
-    console.log(`  Goals: normal_import=${goalPlan.normalGoals.length}  reconstructed_reading=${goalPlan.reconstructReading.length}  archived_blocked_by_schema=${goalPlan.archivedBlocked.length}`);
+    console.log(`  Goals: normal_import=${goalPlan.normalGoals.length}  reconstructed_reading=${goalPlan.reconstructReading.length}  archived_groups=${goalPlan.archived.length}  archived_facts=${factCountForUser}  ${legacyGoalFactsReady ? '(legacy_goal_facts ready)' : "(BLOCKED — legacy_goal_facts table doesn't exist yet)"}`);
     for (const g of goalPlan.reconstructReading) console.log(`    RECONSTRUCT reading goal from legacy goal_id=${g.goalId}: "${g.bookTitles.join(', ')}"`);
-    for (const g of goalPlan.archivedBlocked) console.log(`    BLOCKED (needs schema change) goal_id=${g.goalId}: ${g.logCount} log(s), ${g.dateRange ? g.dateRange.join('..') : ''}`);
+    for (const g of goalPlan.archived) console.log(`    ${legacyGoalFactsReady ? 'ARCHIVE' : 'BLOCKED'} goal_id=${g.goalId}: ${g.logCount} log(s) -> legacy_goal_facts, ${g.dateRange ? g.dateRange.join('..') : ''}`);
 
-    console.log(`  Badges: before=${counts.badges}  eligible=${badgePlan.eligible.length}  ${legacyAllowed ? '(schema ready)' : "(BLOCKED — badges.source doesn't allow 'legacy' yet)"}`);
-    for (const b of badgePlan.eligible) console.log(`    "${b.name}" (${b.badge_type}) earned ${b.earned_date || '(no date)'}`);
+    console.log(`  Badges: before=${counts.badges}  eligible=${badgePlan.eligible.length}  held_invalid_type=${badgePlan.heldInvalidType.length}  ${legacyAllowed ? '(schema ready)' : "(BLOCKED — badges.source doesn't allow 'legacy' yet)"}`);
+    for (const b of badgePlan.eligible) {
+      const overrideNote = b.badgeTypeOverrideReason ? ` [approved override: Base44 badge_type="${b.badge_type}" -> "${b.resolvedBadgeType}" — ${b.badgeTypeOverrideReason}]` : '';
+      console.log(`    "${b.name}" (${b.resolvedBadgeType}) earned ${b.earned_date || '(no date)'}${overrideNote}`);
+    }
+    for (const b of badgePlan.heldInvalidType) console.log(`    HELD "${b.name}" — Base44 badge_type="${b.badge_type}" has no valid rebuilt category (event/skills/staff/milestone); needs a human decision, not imported.`);
 
     console.log(`  Tasks: before=${counts.task_signups}  eligible=${taskPlan.eligible.length}`);
 
@@ -573,19 +650,23 @@ async function main() {
   printHeader('OTHER DATA — classification (unchanged from prior review, not migrated here)');
   console.log('Connection.csv, DailyUpdate.csv, InternshipTask.csv (as standalone templates): NOT migrated — dead features / no product need. See MIGRATION_READINESS_REPORT.md.');
 
-  printHeader('SCHEMA REQUIREMENT — badges.source (proposed only, NOT applied by this run)');
-  console.log(`Currently allows 'legacy': ${legacyAllowed}`);
+  printHeader('SCHEMA STATUS (this run applies nothing — reports current live state only)');
+  console.log(`badges.source allows 'legacy': ${legacyAllowed}`);
   if (!legacyAllowed) {
     console.log(`  ALTER TABLE badges DROP CONSTRAINT badges_source_check;`);
     console.log(`  ALTER TABLE badges ADD CONSTRAINT badges_source_check CHECK (source IN ('manual', 'automatic', 'legacy'));`);
     console.log(`  Rollback: ALTER TABLE badges DROP CONSTRAINT badges_source_check; ALTER TABLE badges ADD CONSTRAINT badges_source_check CHECK (source IN ('manual', 'automatic'));`);
   }
+  console.log(`legacy_goal_facts table exists: ${legacyGoalFactsReady}`);
+  if (!legacyGoalFactsReady) {
+    console.log(`  CREATE TABLE legacy_goal_facts (...); CREATE INDEX legacy_goal_facts_user_id_idx ...  (see MIGRATION_READINESS_REPORT.md)`);
+  }
 
   printHeader('AGGREGATE TOTALS (this run)');
-  console.log(`Daily Scores:      eligible=${totalDsEligible}  skipped_existing=${totalDsSkipped}  held=${totalDsHeld}`);
+  console.log(`Daily Scores:      eligible=${totalDsEligible}  skipped_existing=${totalDsSkipped}  held=${totalDsHeld}  excluded_invalid=${totalDsInvalid}`);
   console.log(`Inspire Challenge: eligible=${totalSeEligible}  skipped_existing=${totalSeSkipped}  held=${totalSeHeld}`);
-  console.log(`Goals:             normal=${totalGoalsNormal}  reconstructed=${totalGoalsReconstructed}  archived_blocked=${totalGoalsArchivedBlocked}`);
-  console.log(`Badges:            eligible=${totalBadgesEligible} ${legacyAllowed ? '' : '(blocked by schema)'}`);
+  console.log(`Goals:             normal=${totalGoalsNormal}  reconstructed=${totalGoalsReconstructed}  archived_groups=${totalGoalsArchivedGroups}  archived_facts=${totalLegacyGoalFacts} ${legacyGoalFactsReady ? '' : '(blocked — legacy_goal_facts missing)'}`);
+  console.log(`Badges:            eligible=${totalBadgesEligible}  held_invalid_type=${totalBadgesHeldInvalidType} ${legacyAllowed ? '' : '(blocked by schema)'}`);
   console.log(`Tasks:             eligible=${totalTasksEligible}`);
 
   await flushManifest();

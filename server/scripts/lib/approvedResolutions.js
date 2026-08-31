@@ -91,6 +91,21 @@ export const GOAL_ORPHAN_RECONSTRUCT = new Set([
   'ma@inspiringchildren.org|69f265480961f72e98433870',
 ]);
 
+// ─── Badge type overrides ────────────────────────────────────────────────────
+// Base44's badge_type doesn't always land in the rebuilt schema's fixed enum
+// (event/skills/staff/milestone) — badges_badge_type_check rejects anything
+// else. A mismatch is held for a human to pick the correct category; this is
+// the allow-list of already-decided mappings. Only badge_type is remapped —
+// name/description/earned_date/trigger_key/source are always preserved
+// verbatim from the Base44 row.
+
+export const BADGE_TYPE_OVERRIDES = new Map([
+  ['ma@inspiringchildren.org|Consistency', {
+    badgeType: 'milestone',
+    reason: "Base44 badge_type 'achievement' has no rebuilt counterpart; approved mapping to 'milestone'.",
+  }],
+]);
+
 export function dailyScoreKey(email, date) {
   return `${email}|${date}`;
 }
@@ -99,4 +114,7 @@ export function summerEntryKey(email, date) {
 }
 export function goalOrphanKey(email, goalId) {
   return `${email}|${goalId}`;
+}
+export function badgeKey(email, name) {
+  return `${email}|${name}`;
 }
