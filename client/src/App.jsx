@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -22,9 +23,26 @@ import NewMeditationGoal from './pages/app/goals/NewMeditationGoal';
 import NewCustomGoal from './pages/app/goals/NewCustomGoal';
 import RequireHQAccess from './components/hq/RequireHQAccess';
 import HQShell from './components/hq/HQShell';
-import HQOverview from './pages/hq/Overview';
-import HQMembers from './pages/hq/Members';
-import HQMemberProfile from './pages/hq/MemberProfile';
+
+// Inspire HQ is staff/admin-only and adds a meaningfully larger surface
+// (charts, tables, exports) than the participant app — lazy-loaded so
+// participants never pay for HQ's JS on first load.
+const HQOverview = lazy(() => import('./pages/hq/Overview'));
+const HQMembers = lazy(() => import('./pages/hq/Members'));
+const HQMemberProfile = lazy(() => import('./pages/hq/MemberProfile'));
+const HQCohorts = lazy(() => import('./pages/hq/Cohorts'));
+const HQDailyScores = lazy(() => import('./pages/hq/DailyScoresHQ'));
+const HQGoals = lazy(() => import('./pages/hq/GoalsHQ'));
+const HQChallenge = lazy(() => import('./pages/hq/ChallengeHQ'));
+const HQVolunteerHours = lazy(() => import('./pages/hq/VolunteerHoursHQ'));
+const HQTasks = lazy(() => import('./pages/hq/TasksHQ'));
+const HQReports = lazy(() => import('./pages/hq/Reports'));
+const HQAnalytics = lazy(() => import('./pages/hq/Analytics'));
+const HQSettings = lazy(() => import('./pages/hq/Settings'));
+
+function HQLoading() {
+  return <div className="py-16 text-center text-ink-muted text-sm">Loading…</div>;
+}
 
 function RootRedirect() {
   const { user, loading } = useAuth();
@@ -63,10 +81,26 @@ export default function App() {
         </Route>
 
         <Route element={<RequireHQAccess />}>
-          <Route path="/hq" element={<HQShell />}>
+          <Route
+            path="/hq"
+            element={
+              <Suspense fallback={<HQLoading />}>
+                <HQShell />
+              </Suspense>
+            }
+          >
             <Route index element={<HQOverview />} />
             <Route path="members" element={<HQMembers />} />
             <Route path="members/:id" element={<HQMemberProfile />} />
+            <Route path="people/cohorts" element={<HQCohorts />} />
+            <Route path="daily-scores" element={<HQDailyScores />} />
+            <Route path="goals" element={<HQGoals />} />
+            <Route path="challenge" element={<HQChallenge />} />
+            <Route path="volunteer-hours" element={<HQVolunteerHours />} />
+            <Route path="tasks" element={<HQTasks />} />
+            <Route path="reports" element={<HQReports />} />
+            <Route path="analytics" element={<HQAnalytics />} />
+            <Route path="settings" element={<HQSettings />} />
           </Route>
         </Route>
 

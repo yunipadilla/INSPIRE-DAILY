@@ -1,4 +1,5 @@
 import { query } from '../../db.js';
+import { ptDateString, addDays } from '../../config/pacificTime.js';
 
 // Whitelisted sort keys mapped to real column expressions — never interpolate
 // a client-supplied string directly into ORDER BY.
@@ -10,6 +11,8 @@ const SORTABLE_COLUMNS = {
   lastActivity: 'last_activity',
 };
 
+const ACTIVE_WINDOW_DAYS = 14;
+
 export const MAX_PAGE_SIZE = 100;
 export const DEFAULT_PAGE_SIZE = 20;
 
@@ -18,8 +21,14 @@ export const DEFAULT_PAGE_SIZE = 20;
  * system_role='participant' — Inspire HQ's "Members" is the participant
  * roster, not staff/admin accounts managing it. Every filter/sort value is
  * validated against a fixed whitelist before it ever reaches SQL.
+ *
+ * `activityState` ('active'|'inactive') is a deterministic, documented rule
+ * — a submission within the last 14 days counts as active — not a fuzzy
+ * inference. Cohort filtering is intentionally not implemented: cohorts
+ * don't exist in the schema yet (see INSPIRE_MASTER_CONTEXT.md §6/§17), so
+ * the Members page shows a "coming soon" state instead of a fake filter.
  */
-export async function listMembers({ search, appRole, accountStatus, sort, direction, page, pageSize }) {
+export async function listMembers({ search, appRole, accountStatus, activityState, sort, direction, page, pageSize }) {
   const conditions = [`u.system_role = 'participant'`];
   const params = [];
   let i = 1;
@@ -39,6 +48,15 @@ export async function listMembers({ search, appRole, accountStatus, sort, direct
     params.push(accountStatus);
     i += 1;
   }
+  if (activityState === 'active' || activityState === 'inactive') {
+    const activeCutoff = addDays(ptDateString(), -ACTIVE_WINDOW_DAYS);
+    const cmp = activityState === 'active' ? '>=' : '<';
+    conditions.push(
+      `coalesce((select max(ds.date) from daily_scores ds where ds.user_id = u.id), '0001-01-01') ${cmp} $${i}::date`
+    );
+    params.push(activeCutoff);
+    i += 1;
+  }
 
   const sortColumn = SORTABLE_COLUMNS[sort] || SORTABLE_COLUMNS.createdAt;
   const sortDir = direction === 'asc' ? 'asc' : 'desc';
@@ -54,7 +72,10 @@ export async function listMembers({ search, appRole, accountStatus, sort, direct
     query(
       `select u.id, u.first_name, u.last_name, u.email, u.profile_photo_url, u.app_role, u.account_status,
               u.streak_count, u.streak_shields, u.created_at,
-              (select max(ds.date) from daily_scores ds where ds.user_id = u.id) as last_activity
+              (select max(ds.date) from daily_scores ds where ds.user_id = u.id) as last_activity,
+              (select count(*) from goals where user_id = u.id and completed = false)::int as active_goals,
+              (select count(*) from badges where user_id = u.id)::int as badge_count,
+              coalesce((select sum(total_points) from summer_entries where user_id = u.id), 0)::numeric as challenge_points
          from users u
         where ${whereClause}
         order by ${sortColumn} ${sortDir} nulls last, u.id
@@ -88,14 +109,15 @@ export async function getMemberProfile(id) {
   const user = userRes.rows[0];
   if (!user) return null;
 
-  const [dailyScoresRes, goalsRes, challengeRes, tasksRes, badgesRes, timelineRes] = await Promise.all([
+  const [dailyScoresRes, goalsRes, challengeRes, challengeHistoryRes, tasksRes, badgesRes, volunteerRes, legacyFactsRes, timelineRes] = await Promise.all([
     query(
-      `select date, total_score, best_self, ceo_mindset, grit, happiness, sleep, volunteer_hours
+      `select date, total_score, best_self, ceo_mindset, grit, happiness, sleep, volunteer_hours,
+              earned_way, challenges, goals_worked_on
          from daily_scores where user_id = $1 order by date desc limit 30`,
       [id]
     ),
     query(
-      `select id, type, name, completed, completed_date, target_date, created_at
+      `select id, type, name, completed, completed_date, target_date, created_at, details
          from goals where user_id = $1 order by created_at desc`,
       [id]
     ),
@@ -105,7 +127,13 @@ export async function getMemberProfile(id) {
       [id]
     ),
     query(
-      `select ts.id, ts.status, ts.hours_spent, ts.completed_date, ts.created_at, it.title, it.level
+      `select date, total_points, submitted_at, sleep_bed_before_10, sleep_8h, hydration, exercise,
+              screen_time_tier, mindfulness_sessions, reading_sessions, daily_update_sent, nutrition, cold_plunge_type
+         from summer_entries where user_id = $1 order by date desc limit 30`,
+      [id]
+    ),
+    query(
+      `select ts.id, ts.status, ts.hours_spent, ts.notes, ts.completed_date, ts.created_at, it.title, it.level
          from task_signups ts
          join internship_tasks it on it.id = ts.task_id
         where ts.user_id = $1
@@ -114,12 +142,23 @@ export async function getMemberProfile(id) {
     ),
     query(
       `select b.id, b.badge_type, b.name, b.description, b.icon_emoji, b.earned_date,
-              b.reason, b.source, b.awarded_by,
+              b.reason, b.source, b.awarded_by, b.trigger_key,
               u.first_name as awarded_by_first_name, u.last_name as awarded_by_last_name
          from badges b
          left join users u on u.id = b.awarded_by
         where b.user_id = $1
         order by b.earned_date desc`,
+      [id]
+    ),
+    query(
+      `select coalesce(sum(volunteer_hours), 0)::float as total,
+              (select date::text from daily_scores where user_id = $1 and volunteer_hours > 0 order by date desc limit 1) as last_activity
+         from daily_scores where user_id = $1`,
+      [id]
+    ),
+    query(
+      `select count(*)::int as fact_count, count(distinct legacy_goal_id)::int as group_count
+         from legacy_goal_facts where user_id = $1`,
       [id]
     ),
     query(
@@ -140,19 +179,48 @@ export async function getMemberProfile(id) {
        (select 'badge_earned', b.earned_date::timestamptz, 'Earned badge "' || b.name || '"'
           from badges b where b.user_id = $1
          order by b.earned_date desc limit 10)
+       union all
+       (select 'challenge_entry', se.submitted_at, 'Logged Inspire Challenge (' || se.total_points || ' pts)'
+          from summer_entries se where se.user_id = $1
+         order by se.submitted_at desc limit 10)
        order by occurred_at desc
        limit 20`,
       [id]
     ),
   ]);
 
+  // Books/logs for this user's own (non-orphan) goals — two queries total,
+  // not one per goal, then attached in JS.
+  const [booksRes, logsRes] = await Promise.all([
+    query(`select * from goal_books where user_id = $1 order by order_index asc`, [id]),
+    query(`select * from goal_logs where user_id = $1 order by date desc`, [id]),
+  ]);
+  const goals = goalsRes.rows.map((g) => ({
+    ...g,
+    books: booksRes.rows.filter((b) => b.goal_id === g.id),
+    logs: logsRes.rows.filter((l) => l.goal_id === g.id),
+  }));
+
   return {
     user,
     dailyScores: dailyScoresRes.rows,
-    goals: goalsRes.rows,
+    goals,
     challenge: challengeRes.rows[0],
+    challengeHistory: challengeHistoryRes.rows,
     tasks: tasksRes.rows,
     badges: badgesRes.rows,
+    volunteerHours: { total: volunteerRes.rows[0].total, lastActivity: volunteerRes.rows[0].last_activity },
+    // Historical Base44 legacy status is derived ONLY from live DB state —
+    // never from re-reading the offline CSV export at runtime (that data is
+    // never deployed anywhere; see MIGRATION_READINESS_REPORT.md). This is
+    // intentionally a 2-state signal, not the full dry-run tool's
+    // classification — a live "legacy history available for this email but
+    // not yet imported" state would require deploying participant PII to
+    // production, which this app deliberately never does.
+    legacyStatus:
+      legacyFactsRes.rows[0].fact_count > 0 || badgesRes.rows.some((b) => b.source === 'legacy')
+        ? { state: 'imported', archivedFactGroups: legacyFactsRes.rows[0].group_count, archivedFactCount: legacyFactsRes.rows[0].fact_count }
+        : { state: 'none', archivedFactGroups: 0, archivedFactCount: 0 },
     timeline: timelineRes.rows,
   };
 }

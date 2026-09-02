@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
 import PageTitle from '../../components/ui/PageTitle';
 import FilterBar from '../../components/ui/FilterBar';
@@ -8,24 +9,37 @@ import ErrorState from '../../components/ui/ErrorState';
 import Skeleton from '../../components/ui/Skeleton';
 
 const APP_ROLE_OPTIONS = [
-  { value: 'intern', label: 'Intern' },
-  { value: 'postgrad', label: 'Postgrad' },
-  { value: 'alumni', label: 'Alumni' },
+  { value: 'intern', label: 'Intern', plural: 'Interns' },
+  { value: 'postgrad', label: 'Postgrad', plural: 'Postgrads' },
+  { value: 'alumni', label: 'Alumni', plural: 'Alumni' },
+  { value: 'staff', label: 'Staff', plural: 'Staff' },
 ];
 const STATUS_OPTIONS = [
   { value: 'approved', label: 'Approved' },
   { value: 'pending', label: 'Pending' },
-  { value: 'denied', label: 'Denied' },
+  { value: 'denied', label: 'Suspended' },
+];
+const ACTIVITY_OPTIONS = [
+  { value: 'active', label: 'Active (14d)' },
+  { value: 'inactive', label: 'Inactive' },
 ];
 const PAGE_SIZE = 20;
 
 export default function Members() {
+  // Interns/Alumni/Staff sidebar links are saved-filter views of this same
+  // page (?appRole=...) — never a separate data model, per the approved scope.
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
-  const [appRole, setAppRole] = useState('');
+  const [appRole, setAppRole] = useState(searchParams.get('appRole') || '');
   const [accountStatus, setAccountStatus] = useState('');
+  const [activityState, setActivityState] = useState('');
   const [page, setPage] = useState(1);
   const [data, setData] = useState(null);
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setAppRole(searchParams.get('appRole') || '');
+  }, [searchParams]);
 
   function load() {
     setError(false);
@@ -33,15 +47,16 @@ export default function Members() {
     if (search) params.set('search', search);
     if (appRole) params.set('appRole', appRole);
     if (accountStatus) params.set('accountStatus', accountStatus);
+    if (activityState) params.set('activityState', activityState);
     params.set('page', String(page));
     params.set('pageSize', String(PAGE_SIZE));
     apiFetch(`/hq/members?${params.toString()}`).then(setData).catch(() => setError(true));
   }
 
-  useEffect(load, [search, appRole, accountStatus, page]);
+  useEffect(load, [search, appRole, accountStatus, activityState, page]);
   useEffect(() => {
     setPage(1);
-  }, [search, appRole, accountStatus]);
+  }, [search, appRole, accountStatus, activityState]);
 
   const columns = [
     { key: 'name', label: 'Name', render: (r) => r.fullName },
@@ -54,30 +69,38 @@ export default function Members() {
         </span>
       ),
     },
-    { key: 'accountStatus', label: 'Status' },
+    { key: 'accountStatus', label: 'Status', render: (r) => (r.accountStatus === 'denied' ? 'Suspended' : r.accountStatus) },
     { key: 'streakCount', label: 'Streak', render: (r) => `🔥 ${r.streakCount}` },
+    { key: 'activeGoals', label: 'Active goals' },
+    { key: 'challengePoints', label: 'Challenge pts', render: (r) => r.challengePoints.toFixed(0) },
+    { key: 'badgeCount', label: 'Badges', render: (r) => `🏅 ${r.badgeCount}` },
     { key: 'lastActivity', label: 'Last activity', render: (r) => r.lastActivity || '—' },
   ];
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
+  const viewLabel = appRole ? APP_ROLE_OPTIONS.find((o) => o.value === appRole)?.plural : null;
 
   return (
     <div className="space-y-5">
-      <PageTitle>Members</PageTitle>
+      <PageTitle>{viewLabel || 'Members'}</PageTitle>
 
       <FilterBar
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder="Search by name or email…"
         filters={[
-          { key: 'appRole', label: 'All roles', value: appRole, onChange: setAppRole, options: APP_ROLE_OPTIONS },
           {
-            key: 'accountStatus',
-            label: 'All statuses',
-            value: accountStatus,
-            onChange: setAccountStatus,
-            options: STATUS_OPTIONS,
+            key: 'appRole',
+            label: 'All roles',
+            value: appRole,
+            onChange: (v) => {
+              setAppRole(v);
+              setSearchParams(v ? { appRole: v } : {});
+            },
+            options: APP_ROLE_OPTIONS,
           },
+          { key: 'accountStatus', label: 'All statuses', value: accountStatus, onChange: setAccountStatus, options: STATUS_OPTIONS },
+          { key: 'activityState', label: 'Any activity', value: activityState, onChange: setActivityState, options: ACTIVITY_OPTIONS },
         ]}
       />
 

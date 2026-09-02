@@ -100,3 +100,12 @@ export function requireSystemRole(...roles) {
  * sees every member.
  */
 export const requireHQAccess = requireSystemRole('staff', 'admin', 'super_admin');
+
+/**
+ * Admin-tier HQ actions: cohort/staff-assignment management (not yet built),
+ * account suspension/reactivation, permanent account deletion, program
+ * settings. Ordinary staff get HQ dashboard/analytics/badge-award access via
+ * requireHQAccess above, but never these — see INSPIRE_MASTER_CONTEXT.md's
+ * HQ 2.0 access model.
+ */
+export const requireHQAdmin = requireSystemRole('admin', 'super_admin');

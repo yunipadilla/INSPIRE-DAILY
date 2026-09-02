@@ -3,6 +3,16 @@ import { Link, useLocation } from 'react-router-dom';
 const LABELS = {
   hq: 'Inspire HQ',
   members: 'Members',
+  people: 'People',
+  cohorts: 'Cohorts',
+  'daily-scores': 'Daily Scores',
+  goals: 'Goals',
+  challenge: 'Inspire Challenge',
+  'volunteer-hours': 'Volunteer Hours',
+  tasks: 'Tasks',
+  reports: 'Reports',
+  analytics: 'Analytics',
+  settings: 'Settings',
 };
 
 /** Derives breadcrumbs from the URL — a bare UUID segment (a member id) renders as "Profile". */

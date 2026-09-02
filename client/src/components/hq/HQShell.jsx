@@ -1,34 +1,89 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Users, Menu, X } from 'lucide-react';
+import {
+  LayoutDashboard, Users, GraduationCap, Award, Building2, FolderTree,
+  BarChart3, Target, Trophy, HandHeart, ClipboardList,
+  FileText, LineChart, Settings, Menu, X,
+} from 'lucide-react';
 import InspireLogo from '../InspireLogo';
 import ThemeToggle from '../ui/ThemeToggle';
 import Breadcrumbs from './Breadcrumbs';
 import { useAuth } from '../../context/AuthContext';
 
-const NAV_ITEMS = [
-  { to: '/hq', end: true, label: 'Overview', icon: LayoutDashboard },
-  { to: '/hq/members', label: 'Members', icon: Users },
+/**
+ * Grouped sidebar nav — Inspire HQ 2.0. Groups mirror the mental model
+ * "who am I looking at" (People), "what are they doing" (Program), "how is
+ * it all going" (Insights), matching the Overview page's own hierarchy.
+ * `end: true` only on Overview so its NavLink doesn't stay highlighted for
+ * every nested /hq/* route.
+ */
+const NAV_GROUPS = [
+  { items: [{ to: '/hq', end: true, label: 'Overview', icon: LayoutDashboard }] },
+  {
+    title: 'People',
+    items: [
+      { to: '/hq/members', label: 'Members', icon: Users },
+      { to: '/hq/members?appRole=intern', label: 'Interns', icon: GraduationCap },
+      { to: '/hq/members?appRole=alumni', label: 'Alumni', icon: Award },
+      { to: '/hq/members?appRole=staff', label: 'Staff', icon: Building2 },
+      { to: '/hq/people/cohorts', label: 'Cohorts / Groups', icon: FolderTree },
+    ],
+  },
+  {
+    title: 'Program',
+    items: [
+      { to: '/hq/daily-scores', label: 'Daily Scores', icon: BarChart3 },
+      { to: '/hq/goals', label: 'Goals', icon: Target },
+      { to: '/hq/challenge', label: 'Inspire Challenge', icon: Trophy },
+      { to: '/hq/volunteer-hours', label: 'Volunteer Hours', icon: HandHeart },
+      { to: '/hq/tasks', label: 'Tasks', icon: ClipboardList },
+    ],
+  },
+  {
+    title: 'Insights',
+    items: [
+      { to: '/hq/reports', label: 'Reports', icon: FileText },
+      { to: '/hq/analytics', label: 'Analytics', icon: LineChart },
+    ],
+  },
+  { title: 'System', items: [{ to: '/hq/settings', label: 'Settings', icon: Settings }] },
 ];
 
-/**
- * Inspire HQ's shell — a sidebar-first layout, deliberately different from
- * Inspire Daily's bottom-tab AppShell (see Inspire 2.1 Part 04: Daily is
- * tab-oriented for "what should I do right now," HQ is sidebar-oriented for
- * "what's the state of the program"). Sidebar is a fixed column on desktop
- * (md+) and an off-canvas drawer below that, so the same shell works from
- * phone to desktop without two separate implementations.
- */
+function NavItem({ to, end, label, icon: Icon, onClick }) {
+  // Query-string nav entries (Interns/Alumni/Staff saved filter views) need
+  // isActive computed against the full path+search, since react-router's own
+  // NavLink `end` matching ignores search params.
+  const [pathname, search] = to.split('?');
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      onClick={onClick}
+      className={({ isActive }) => {
+        const searchMatches = typeof window !== 'undefined' ? window.location.search === `?${search || ''}` || (!search && !window.location.search) : true;
+        const active = search ? isActive && searchMatches : isActive;
+        return `flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+          active ? 'bg-primary/12 text-primary font-semibold' : 'text-ink-secondary hover:bg-surface-soft'
+        }`;
+      }}
+    >
+      <Icon size={17} />
+      {label}
+    </NavLink>
+  );
+}
+
 export default function HQShell() {
   const { user, logout } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const isAdmin = ['admin', 'super_admin'].includes(user?.systemRole);
 
   return (
     <div className="min-h-screen bg-appbg flex">
       <aside
         className={`
           bg-surface-elevated border-r border-border/8 w-64 flex-shrink-0
-          flex flex-col fixed inset-y-0 left-0 z-40 transition-transform duration-200
+          flex flex-col fixed inset-y-0 left-0 z-40 transition-transform duration-200 overflow-y-auto
           md:translate-x-0 md:static
           ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
@@ -39,25 +94,24 @@ export default function HQShell() {
             <X size={20} />
           </button>
         </div>
-        <div className="px-5 pb-3">
+        <div className="px-5 pb-3 flex items-center justify-between">
           <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Inspire HQ</span>
+          {isAdmin && (
+            <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-lavender/20 text-navy/70">Admin</span>
+          )}
         </div>
-        <nav className="flex-1 px-3 space-y-1">
-          {NAV_ITEMS.map(({ to, end, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              onClick={() => setDrawerOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  isActive ? 'bg-primary/12 text-primary font-semibold' : 'text-ink-secondary hover:bg-surface-soft'
-                }`
-              }
-            >
-              <Icon size={18} />
-              {label}
-            </NavLink>
+        <nav className="flex-1 px-3 space-y-4 pb-4">
+          {NAV_GROUPS.map((group, gi) => (
+            <div key={group.title || gi}>
+              {group.title && (
+                <p className="px-3 mb-1 text-[10px] font-bold uppercase tracking-widest text-ink-muted/70">{group.title}</p>
+              )}
+              <div className="space-y-0.5">
+                {group.items.map((item) => (
+                  <NavItem key={item.to} {...item} onClick={() => setDrawerOpen(false)} />
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
         <div className="p-4 border-t border-border/8">

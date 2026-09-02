@@ -78,6 +78,20 @@ export async function suspendUser(id) {
 }
 
 /**
+ * Permanently deletes an account and every row that cascades from it
+ * (daily_scores, goals, badges, task_signups, summer_entries,
+ * legacy_goal_facts, etc. — all have `ON DELETE CASCADE` to users(id)).
+ * Irreversible. Callers must gate this behind admin/super_admin
+ * authorization and an explicit confirmation step — this function itself
+ * performs no such check, by design (a repository never knows about
+ * req/res or who's calling).
+ */
+export async function deleteUserPermanently(id) {
+  const { rows } = await query(`delete from users where id = $1 returning id, email`, [id]);
+  return rows[0] || null;
+}
+
+/**
  * Sets a new password hash and stamps password_changed_at. That stamp is
  * what invalidates every previously-issued JWT (see middleware/auth.js) —
  * this function only ever touches password_hash/password_changed_at, never
