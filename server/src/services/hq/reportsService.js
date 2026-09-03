@@ -111,10 +111,15 @@ export async function buildParticipantImpactReportData(userId, { days = 30 } = {
       hours: profile.tasks.filter((t) => t.status === 'completed').reduce((s, t) => s + Number(t.hours_spent || 0), 0),
     },
     volunteerHours: profile.volunteerHours.total,
+    // currentPeriodPoints = active Challenge period only (never inflated by
+    // older historical months); allTimePoints is the separate, explicitly
+    // labeled figure — see participantNarrative/renderParticipantImpactPdf.
     challenge: {
       entriesInWindow: challengeInWindow.length,
-      totalPoints: Number(profile.challenge.total_points),
-      daysLogged: profile.challenge.days_logged,
+      currentPeriodPoints: Number(profile.challenge.total_points),
+      currentPeriodDaysLogged: profile.challenge.days_logged,
+      allTimePoints: Number(profile.challengeAllTime.total_points),
+      allTimeDaysLogged: profile.challengeAllTime.days_logged,
     },
     badges: profile.badges.map((b) => ({ name: b.name, type: b.badge_type, earnedDate: b.earned_date })),
   };
@@ -125,7 +130,7 @@ function participantNarrative(d) {
   lines.push(`${d.user.first_name} ${d.user.last_name} submitted Daily Scores ${d.dailyScoreSubmissions} time(s) in the ${d.periodLabel.toLowerCase()}, with a current streak of ${d.streakCount} day(s).`);
   lines.push(`${d.goals.active} goal(s) are active and ${d.goals.completed} have been completed${d.goals.readingBooksCompleted ? `, including ${d.goals.readingBooksCompleted} book(s) finished` : ''}.`);
   lines.push(`${d.tasks.completed} internship task(s) were completed, totaling ${d.tasks.hours.toFixed(1)} hours, alongside ${d.volunteerHours.toFixed(1)} volunteer hours logged.`);
-  lines.push(`${d.challenge.entriesInWindow} Inspire Challenge entries were logged in this period (${d.challenge.totalPoints.toFixed(1)} canonical points all-time across ${d.challenge.daysLogged} day(s)).`);
+  lines.push(`${d.challenge.entriesInWindow} Inspire Challenge entries were logged in this period, worth ${d.challenge.currentPeriodPoints.toFixed(1)} canonical points in the current Challenge period (${d.challenge.allTimePoints.toFixed(1)} points all-time across ${d.challenge.allTimeDaysLogged} day(s)).`);
   lines.push(d.badges.length ? `${d.badges.length} badge(s) earned: ${d.badges.map((b) => b.name).join(', ')}.` : 'No badges earned yet.');
   if (d.dailyScoreSubmissions === 0) lines.push('Area needing attention: no Daily Scores activity in this reporting period.');
   return lines;
@@ -165,7 +170,7 @@ export async function renderProgramReportPdf(data) {
     ['Tasks completed', data.tasksCompleted],
     ['Volunteer hours (30d)', data.totalVolunteerHours.toFixed(1)],
     ['Challenge participants', data.challengeParticipants],
-    ['Challenge points (30d)', data.challengeTotalPoints.toFixed(1)],
+    ['Challenge points (current period)', data.challengeTotalPoints.toFixed(1)],
     ['Badges awarded', data.badgesAwarded],
   ];
   for (const [label, value] of rows) doc.text(`${label}: ${value}`);
@@ -198,7 +203,7 @@ export async function renderParticipantImpactPdf(data) {
   doc.text(`Goals — active: ${data.goals.active}, completed: ${data.goals.completed}, books completed: ${data.goals.readingBooksCompleted}`);
   doc.text(`Tasks completed: ${data.tasks.completed} (${data.tasks.hours.toFixed(1)} hours)`);
   doc.text(`Volunteer hours (all-time): ${data.volunteerHours.toFixed(1)}`);
-  doc.text(`Inspire Challenge: ${data.challenge.totalPoints.toFixed(1)} points across ${data.challenge.daysLogged} days`);
+  doc.text(`Inspire Challenge: ${data.challenge.currentPeriodPoints.toFixed(1)} points this Challenge period (${data.challenge.allTimePoints.toFixed(1)} all-time across ${data.challenge.allTimeDaysLogged} days)`);
   doc.text(`Badges: ${data.badges.length ? data.badges.map((b) => b.name).join(', ') : 'none yet'}`);
   return pdfToBuffer(doc);
 }

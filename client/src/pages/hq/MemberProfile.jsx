@@ -123,7 +123,7 @@ export default function MemberProfile() {
     );
   }
 
-  const { user: member, dailyScores, goals, challenge, challengeHistory, tasks, badges, volunteerHours, legacyStatus, timeline } = data;
+  const { user: member, dailyScores, goals, challenge, challengeAllTime, challengeHistory, tasks, badges, volunteerHours, legacyStatus, timeline } = data;
   const activeGoals = goals.filter((g) => !g.completed);
   const completedGoals = goals.filter((g) => g.completed);
   const tasksCompleted = tasks.filter((t) => t.status === 'completed');
@@ -328,10 +328,13 @@ export default function MemberProfile() {
 
       {tab === 'Inspire Challenge' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="card p-3 text-center"><div className="text-lg font-extrabold text-navy">{challenge.totalPoints.toFixed(1)}</div><div className="text-[10px] uppercase text-ink-muted">Total points</div></div>
-            <div className="card p-3 text-center"><div className="text-lg font-extrabold text-navy">{challenge.daysLogged}</div><div className="text-[10px] uppercase text-ink-muted">Days logged</div></div>
-            <div className="card p-3 text-center"><div className="text-lg font-extrabold text-navy">{challenge.daysLogged ? (challenge.totalPoints / challenge.daysLogged).toFixed(1) : '—'}</div><div className="text-[10px] uppercase text-ink-muted">Avg/day</div></div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="card p-3 text-center"><div className="text-lg font-extrabold text-navy">{challenge.totalPoints.toFixed(1)}</div><div className="text-[10px] uppercase text-ink-muted">Current pts</div></div>
+            <div className="card p-3 text-center"><div className="text-lg font-extrabold text-navy">{challenge.daysLogged}</div><div className="text-[10px] uppercase text-ink-muted">Days logged (current)</div></div>
+            <div className="card p-3 text-center"><div className="text-lg font-extrabold text-navy">{challenge.daysLogged ? (challenge.totalPoints / challenge.daysLogged).toFixed(1) : '—'}</div><div className="text-[10px] uppercase text-ink-muted">Avg/day (current)</div></div>
+            {/* Separately labeled all-time figure — the historical Base44 +
+                rebuilt totals combined — never shown as the current score. */}
+            <div className="card p-3 text-center"><div className="text-lg font-extrabold text-navy">{challengeAllTime.totalPoints.toFixed(1)}</div><div className="text-[10px] uppercase text-ink-muted">All-time pts</div></div>
           </div>
           {challengeHistory.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">

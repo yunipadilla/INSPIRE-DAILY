@@ -121,9 +121,16 @@ router.get('/:id', async (req, res) => {
       })),
       logs: (g.logs || []).map((l) => ({ id: l.id, date: l.date, logType: l.log_type, value: l.value, note: l.note, activity: l.activity })),
     })),
+    // `challenge` = current Challenge period only (see memberService's
+    // resolveMonthBounds() usage). `challengeAllTime` is the separate,
+    // explicitly-labeled all-time figure — never displayed as if current.
     challenge: profile.challenge
       ? { totalPoints: Number(profile.challenge.total_points), daysLogged: profile.challenge.days_logged }
       : { totalPoints: 0, daysLogged: 0 },
+    challengeAllTime: profile.challengeAllTime
+      ? { totalPoints: Number(profile.challengeAllTime.total_points), daysLogged: profile.challengeAllTime.days_logged }
+      : { totalPoints: 0, daysLogged: 0 },
+    challengePeriod: profile.challengePeriod,
     challengeHistory: profile.challengeHistory.map((c) => ({
       date: c.date,
       totalPoints: Number(c.total_points),

@@ -1,5 +1,10 @@
 import { query } from '../../db.js';
 import { ptDateString, addDays } from '../../config/pacificTime.js';
+// Shared Challenge-period resolver (Inspire 2.1 date-filter architecture) —
+// the same function that already drives the HQ Challenge page's monthly
+// leaderboard. Reused here so "current Challenge points" means the same
+// thing everywhere in HQ, not a second parallel definition of "current."
+import { resolveMonthBounds } from './challengeService.js';
 
 // Whitelisted sort keys mapped to real column expressions — never interpolate
 // a client-supplied string directly into ORDER BY.
@@ -65,8 +70,15 @@ export async function listMembers({ search, appRole, accountStatus, activityStat
   const safePageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(pageSize) || DEFAULT_PAGE_SIZE));
   const offset = (safePage - 1) * safePageSize;
 
-  const limitParamIndex = i;
-  const offsetParamIndex = i + 1;
+  // "Challenge pts" here is a roster at-a-glance column, unlabeled — per the
+  // current-period display rule it must mean the active Challenge period,
+  // never an all-time sum (that used to silently include every historical
+  // month, which is exactly the "~219 points on day 3" bug).
+  const { start: challengeStart, end: challengeEnd } = resolveMonthBounds();
+  const challengeStartIndex = i;
+  const challengeEndIndex = i + 1;
+  const limitParamIndex = i + 2;
+  const offsetParamIndex = i + 3;
 
   const [rowsRes, countRes] = await Promise.all([
     query(
@@ -75,12 +87,13 @@ export async function listMembers({ search, appRole, accountStatus, activityStat
               (select max(ds.date) from daily_scores ds where ds.user_id = u.id) as last_activity,
               (select count(*) from goals where user_id = u.id and completed = false)::int as active_goals,
               (select count(*) from badges where user_id = u.id)::int as badge_count,
-              coalesce((select sum(total_points) from summer_entries where user_id = u.id), 0)::numeric as challenge_points
+              coalesce((select sum(total_points) from summer_entries
+                         where user_id = u.id and date between $${challengeStartIndex} and $${challengeEndIndex}), 0)::numeric as challenge_points
          from users u
         where ${whereClause}
         order by ${sortColumn} ${sortDir} nulls last, u.id
         limit $${limitParamIndex} offset $${offsetParamIndex}`,
-      [...params, safePageSize, offset]
+      [...params, challengeStart, challengeEnd, safePageSize, offset]
     ),
     query(`select count(*)::int as count from users u where ${whereClause}`, params),
   ]);
@@ -109,7 +122,13 @@ export async function getMemberProfile(id) {
   const user = userRes.rows[0];
   if (!user) return null;
 
-  const [dailyScoresRes, goalsRes, challengeRes, challengeHistoryRes, tasksRes, badgesRes, volunteerRes, legacyFactsRes, timelineRes] = await Promise.all([
+  // Current Challenge period — same shared resolver the HQ Challenge page's
+  // monthly leaderboard uses. `challenge` below means THIS period, never an
+  // all-time sum; `challengeAllTime` is the separate, explicitly-labeled
+  // all-time figure (see MemberProfile's "All-time pts" card).
+  const { start: challengeStart, end: challengeEnd } = resolveMonthBounds();
+
+  const [dailyScoresRes, goalsRes, challengeRes, challengeAllTimeRes, challengeHistoryRes, tasksRes, badgesRes, volunteerRes, legacyFactsRes, timelineRes] = await Promise.all([
     query(
       `select date, total_score, best_self, ceo_mindset, grit, happiness, sleep, volunteer_hours,
               earned_way, challenges, goals_worked_on
@@ -120,6 +139,11 @@ export async function getMemberProfile(id) {
       `select id, type, name, completed, completed_date, target_date, created_at, details
          from goals where user_id = $1 order by created_at desc`,
       [id]
+    ),
+    query(
+      `select coalesce(sum(total_points), 0)::numeric as total_points, count(*)::int as days_logged
+         from summer_entries where user_id = $1 and date between $2 and $3`,
+      [id, challengeStart, challengeEnd]
     ),
     query(
       `select coalesce(sum(total_points), 0)::numeric as total_points, count(*)::int as days_logged
@@ -206,6 +230,8 @@ export async function getMemberProfile(id) {
     dailyScores: dailyScoresRes.rows,
     goals,
     challenge: challengeRes.rows[0],
+    challengeAllTime: challengeAllTimeRes.rows[0],
+    challengePeriod: { start: challengeStart, end: challengeEnd },
     challengeHistory: challengeHistoryRes.rows,
     tasks: tasksRes.rows,
     badges: badgesRes.rows,

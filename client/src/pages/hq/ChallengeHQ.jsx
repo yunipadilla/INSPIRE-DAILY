@@ -53,7 +53,7 @@ export default function ChallengeHQ() {
   const columns = [
     { key: 'rank', label: '#' },
     { key: 'name', label: 'Participant', render: (r) => `${r.firstName} ${r.lastName}` },
-    { key: 'totalPoints', label: 'Total pts', render: (r) => r.totalPoints.toFixed(1) },
+    { key: 'totalPoints', label: 'All-time pts', render: (r) => r.totalPoints.toFixed(1) },
     { key: 'daysLogged', label: 'Days logged' },
     { key: 'avgPointsPerDay', label: 'Avg pts/day', render: (r) => r.avgPointsPerDay.toFixed(2) },
     { key: 'lastActivity', label: 'Last activity', render: (r) => r.lastActivity || '—' },
@@ -69,7 +69,7 @@ export default function ChallengeHQ() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <DashboardCard label="Participants" value={overview.participants} icon="👥" colorVar="--color-primary" />
-        <DashboardCard label="Total points" value={overview.totalPoints.toFixed(0)} icon="🏆" colorVar="--color-yellow" />
+        <DashboardCard label="Points this month" value={overview.totalPoints.toFixed(0)} icon="🏆" colorVar="--color-yellow" />
         <DashboardCard label="Active days" value={overview.activeDays} icon="📅" colorVar="--color-blue" />
         <DashboardCard label="Avg pts/entry" value={overview.avgPointsPerEntry.toFixed(2)} icon="📈" colorVar="--color-lavender" />
       </div>
@@ -112,7 +112,7 @@ export default function ChallengeHQ() {
         <TrendChart data={overview.trend} dataKey="submissions" label="Daily submissions" colorVar="--color-blue" />
       </div>
 
-      <h2 className="text-sm font-bold text-navy uppercase tracking-wide">Category participation (all-time)</h2>
+      <h2 className="text-sm font-bold text-navy uppercase tracking-wide">Category participation (this month)</h2>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <DashboardCard label="Bed before 10" value={`${Math.round((cats.sleep_bed_before_10 || 0) * 100)}%`} icon="🛌" colorVar="--color-lavender" />
         <DashboardCard label="Hydration" value={`${Math.round((cats.hydration || 0) * 100)}%`} icon="💧" colorVar="--color-blue" />

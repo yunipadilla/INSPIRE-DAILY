@@ -17,11 +17,25 @@
 // Base44 "Bert Hernandez" == current "Roberto Hernandez": same email, same
 // last name, same role (Alumni/alumni). Decision: SAME PERSON. His profile
 // name must never be overwritten with the Base44 value.
+//
+// Base44 "Chris 🥷" == current "Seth Christian": exact, unique email match
+// (seththegenius27@gmail.com) and Base44 username "@sethchristian". Base44's
+// own first_name/last_name fields for this record were set to a joke display
+// name ("Chris" / a ninja emoji), not a different person's real name.
+// Explicitly approved by the project owner (2026-09-03) after the importer's
+// automatic name-mismatch check correctly held this account rather than
+// guessing. Decision: SAME PERSON. His profile name must never be
+// overwritten with the Base44 value.
 
 export const IDENTITY_OVERRIDES = new Map([
   ['robertoh1106@gmail.com', {
     decision: 'same_person',
     reason: 'Matching email + last name ("Hernandez") + role (Alumni). "Bert" treated as a nickname for Roberto, not a different person.',
+    neverOverwriteFields: ['first_name', 'last_name'],
+  }],
+  ['seththegenius27@gmail.com', {
+    decision: 'same_person',
+    reason: 'Exact unique email match; Base44 username "@sethchristian" confirms identity. Base44\'s first_name/last_name ("Chris" / 🥷) is a joke display name, not a different person. Approved by project owner 2026-09-03.',
     neverOverwriteFields: ['first_name', 'last_name'],
   }],
 ]);

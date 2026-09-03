@@ -23,13 +23,19 @@ export async function getChallengeOverview({ days = 30, month } = {}) {
   const { start: monthStart, end: monthEnd } = resolveMonthBounds(month);
 
   const [totalsRes, categoryRes, trendRes] = await Promise.all([
+    // Scoped to the selected/current Challenge period (monthStart..monthEnd)
+    // — this used to be an unbounded all-time sum despite currentMonth being
+    // computed right below, which is exactly the "~219 points on day 3"
+    // inflation bug: historical June–August entries were silently included
+    // in what the UI presented as the current period's totals.
     query(
       `select count(distinct se.user_id)::int as participants,
               coalesce(sum(se.total_points), 0)::numeric as total_points,
               count(distinct se.date)::int as active_days,
               count(*)::int as entries
          from summer_entries se join users u on u.id = se.user_id
-        where u.system_role = 'participant'`
+        where u.system_role = 'participant' and se.date between $1 and $2`,
+      [monthStart, monthEnd]
     ),
     query(
       `select
@@ -43,7 +49,8 @@ export async function getChallengeOverview({ days = 30, month } = {}) {
          count(*) filter (where cold_plunge_type = 'plunge')::int as cold_plunge_count,
          count(*) filter (where cold_plunge_type = 'shower')::int as cold_shower_count
          from summer_entries se join users u on u.id = se.user_id
-        where u.system_role = 'participant'`
+        where u.system_role = 'participant' and se.date between $1 and $2`,
+      [monthStart, monthEnd]
     ),
     query(
       `select se.date::text as day, count(*)::int as submissions, coalesce(sum(se.total_points), 0)::numeric as points

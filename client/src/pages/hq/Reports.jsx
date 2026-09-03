@@ -125,7 +125,7 @@ function ParticipantImpactCard() {
                 <div><span className="text-ink-muted">Goals active/done:</span> <span className="font-semibold text-navy">{preview.goals.active}/{preview.goals.completed}</span></div>
                 <div><span className="text-ink-muted">Tasks completed:</span> <span className="font-semibold text-navy">{preview.tasks.completed}</span></div>
                 <div><span className="text-ink-muted">Volunteer hrs:</span> <span className="font-semibold text-navy">{preview.volunteerHours.toFixed(1)}</span></div>
-                <div><span className="text-ink-muted">Challenge pts:</span> <span className="font-semibold text-navy">{preview.challenge.totalPoints.toFixed(1)}</span></div>
+                <div><span className="text-ink-muted">Challenge pts (current period):</span> <span className="font-semibold text-navy">{preview.challenge.currentPeriodPoints.toFixed(1)}</span></div>
                 <div><span className="text-ink-muted">Badges:</span> <span className="font-semibold text-navy">{preview.badges.length}</span></div>
               </div>
               <a className="btn-bubble gradient-rainbow text-white pressable px-3 py-1.5 text-xs inline-block" href={`/api/hq/reports/participant/${selected.id}/export?days=${days}`}>Export PDF</a>
