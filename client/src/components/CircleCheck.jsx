@@ -10,11 +10,11 @@ export default function CircleCheck({ label, sublabel, checked, onChange, points
           checked ? 'border-warning bg-warning' : 'border-border/24'
         }`}
       >
-        {checked && <span className="w-2 h-2 rounded-full bg-white" />}
+        {checked && <span className="w-2 h-2 rounded-full bg-onbrand" />}
       </span>
       <span className="flex-1">
         <span className="block text-sm text-navy">{label}</span>
-        {sublabel && <span className="block text-xs text-navy/60 mt-0.5">{sublabel}</span>}
+        {sublabel && <span className="block text-xs text-ink-secondary mt-0.5">{sublabel}</span>}
       </span>
       {points && <span className="text-sm font-bold text-warning whitespace-nowrap">{points}</span>}
     </button>

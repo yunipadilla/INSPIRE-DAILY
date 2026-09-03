@@ -90,21 +90,21 @@ export default function HQShell() {
       >
         <div className="p-5 flex items-center justify-between">
           <InspireLogo size={28} showTagline={false} />
-          <button className="md:hidden p-1 text-navy/60" onClick={() => setDrawerOpen(false)} aria-label="Close menu">
+          <button className="md:hidden p-1 text-ink-secondary" onClick={() => setDrawerOpen(false)} aria-label="Close menu">
             <X size={20} />
           </button>
         </div>
         <div className="px-5 pb-3 flex items-center justify-between">
           <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">Inspire HQ</span>
           {isAdmin && (
-            <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-lavender/20 text-navy/70">Admin</span>
+            <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-lavender/20 text-ink-secondary">Admin</span>
           )}
         </div>
         <nav className="flex-1 px-3 space-y-4 pb-4">
           {NAV_GROUPS.map((group, gi) => (
             <div key={group.title || gi}>
               {group.title && (
-                <p className="px-3 mb-1 text-[10px] font-bold uppercase tracking-widest text-ink-muted/70">{group.title}</p>
+                <p className="px-3 mb-1 text-[10px] font-bold uppercase tracking-widest text-ink-muted">{group.title}</p>
               )}
               <div className="space-y-0.5">
                 {group.items.map((item) => (
@@ -135,7 +135,7 @@ export default function HQShell() {
         <header className="sticky top-0 z-20 bg-appbg/95 backdrop-blur border-b border-border/8 px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
-              className="md:hidden p-1.5 -ml-1.5 text-navy/70"
+              className="md:hidden p-1.5 -ml-1.5 text-ink-secondary"
               onClick={() => setDrawerOpen(true)}
               aria-label="Open menu"
             >

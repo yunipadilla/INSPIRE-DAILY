@@ -81,7 +81,7 @@ function AccountActions({ member, isAdmin, onChanged }) {
             <div className="flex justify-end gap-2">
               <button className="btn-secondary px-3 py-1.5 text-xs" onClick={() => setConfirmOpen(false)}>Cancel</button>
               <button
-                className="text-xs font-bold px-3 py-1.5 rounded-full bg-danger text-white disabled:opacity-50"
+                className="text-xs font-bold px-3 py-1.5 rounded-full bg-danger text-onbrand disabled:opacity-50"
                 disabled={busy || confirmText.trim().toLowerCase() !== member.email.toLowerCase()}
                 onClick={confirmDelete}
               >
@@ -146,7 +146,7 @@ export default function MemberProfile() {
       </Link>
 
       <div className="card p-5 flex items-center gap-4 flex-wrap">
-        <div className="w-16 h-16 rounded-full gradient-rainbow flex items-center justify-center text-xl font-bold text-white overflow-hidden flex-shrink-0">
+        <div className="w-16 h-16 rounded-full gradient-rainbow flex items-center justify-center text-xl font-bold text-onbrand overflow-hidden flex-shrink-0">
           {member.profilePhotoUrl ? (
             <img src={member.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
           ) : (
@@ -171,7 +171,7 @@ export default function MemberProfile() {
             key={t}
             onClick={() => setTab(t)}
             className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
-              tab === t ? 'bg-primary text-white' : 'bg-surface-soft text-ink-secondary hover:text-navy'
+              tab === t ? 'bg-primary text-onbrand' : 'bg-surface-soft text-ink-secondary hover:text-navy'
             }`}
           >
             {t}
@@ -259,7 +259,7 @@ export default function MemberProfile() {
                     <div>
                       <span className="text-sm font-semibold text-navy">{g.name}</span>{' '}
                       <span className="text-xs text-ink-muted">({GOAL_TYPE_LABELS[g.type] || g.type})</span>
-                      {g.isHistoricalImport && <span className="ml-2 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-lavender/20 text-navy/70">Historical import</span>}
+                      {g.isHistoricalImport && <span className="ml-2 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-lavender/20 text-ink-secondary">Historical import</span>}
                     </div>
                     <span className={g.completed ? 'text-success font-semibold text-xs' : 'text-ink-muted text-xs'}>
                       {g.completed ? `✓ Completed ${g.completedDate}` : 'In progress'}

@@ -1,8 +1,9 @@
 import { Router } from 'express';
+import { ptDayOfWeek, currentMonthBoundsPT } from '../config/pacificTime.js';
 import { requireAuth } from '../middleware/auth.js';
-import { ptDateString, isSundayPT, deadlineLabelFor, currentMonthBoundsPT } from '../config/pacificTime.js';
 import { SUMMER_CHALLENGE_LAUNCH_DATE } from '../config/constants.js';
 import { calculateSummerPoints } from '../lib/summerChallenge.js';
+import { getSubmissionWindow, isEligibleSubmissionDate, eligibilityMessageFor } from '../lib/submissionWindow.js';
 import { findByUserAndDate, insertSummerEntry, monthlySummerLeaderboard } from '../repositories/summerEntries.js';
 import { query } from '../db.js';
 
@@ -25,28 +26,61 @@ function toClientEntry(e) {
   };
 }
 
+/**
+ * Same canonical window as Daily Scores (server/src/lib/submissionWindow.js)
+ * — the UI never decides eligibility on its own. Returns both today's and
+ * yesterday's (if in-window) existing-entry state in one call, same shape
+ * convention as GET /api/daily-scores/today.
+ */
 router.get('/today', async (req, res) => {
-  const today = ptDateString();
-  const isLaunched = today >= SUMMER_CHALLENGE_LAUNCH_DATE;
-  const sunday = isSundayPT();
+  const w = getSubmissionWindow();
+  const isLaunched = w.today >= SUMMER_CHALLENGE_LAUNCH_DATE;
   const { start: monthStart, end: monthEnd } = currentMonthBoundsPT();
 
-  const [existing, volunteerHoursRes] = await Promise.all([
-    isLaunched && !sunday ? findByUserAndDate(req.user.id, today) : null,
-    query(
-      'select coalesce(sum(volunteer_hours), 0)::float as hours from daily_scores where user_id = $1 and date between $2 and $3',
-      [req.user.id, monthStart, monthEnd]
-    ),
+  const volunteerHoursRes = await query(
+    'select coalesce(sum(volunteer_hours), 0)::float as hours from daily_scores where user_id = $1 and date between $2 and $3',
+    [req.user.id, monthStart, monthEnd]
+  );
+
+  if (w.todayIsSunday || !isLaunched) {
+    return res.json({
+      window: w,
+      isLaunched,
+      launchDate: SUMMER_CHALLENGE_LAUNCH_DATE,
+      today: { date: w.today, isSunday: w.todayIsSunday, alreadySubmitted: false, existing: null },
+      yesterday: null,
+      volunteerHoursThisMonth: volunteerHoursRes.rows[0].hours,
+    });
+  }
+
+  const [todayExisting, yesterdayExisting] = await Promise.all([
+    findByUserAndDate(req.user.id, w.today),
+    w.yesterdayEligible ? findByUserAndDate(req.user.id, w.yesterday) : Promise.resolve(null),
   ]);
 
   res.json({
-    date: today,
-    launchDate: SUMMER_CHALLENGE_LAUNCH_DATE,
+    window: w,
     isLaunched,
-    isSunday: sunday,
-    alreadySubmitted: Boolean(existing),
-    existing: existing ? toClientEntry(existing) : null,
-    deadlineLabel: deadlineLabelFor(today),
+    launchDate: SUMMER_CHALLENGE_LAUNCH_DATE,
+    today: {
+      date: w.today,
+      isSunday: false,
+      alreadySubmitted: Boolean(todayExisting),
+      existing: todayExisting ? toClientEntry(todayExisting) : null,
+    },
+    yesterday: w.yesterdayEligible
+      ? {
+          date: w.yesterday,
+          eligible: true,
+          alreadySubmitted: Boolean(yesterdayExisting),
+          existing: yesterdayExisting ? toClientEntry(yesterdayExisting) : null,
+        }
+      : {
+          date: w.yesterday,
+          eligible: false,
+          isSunday: ptDayOfWeek(w.yesterday) === 0,
+          message: eligibilityMessageFor(w.yesterday),
+        },
     volunteerHoursThisMonth: volunteerHoursRes.rows[0].hours,
   });
 });
@@ -68,20 +102,20 @@ router.get('/leaderboard', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const today = ptDateString();
+  const w = getSubmissionWindow();
+  const requestedDate = req.body?.date;
+  const targetDate = requestedDate !== undefined ? requestedDate : w.today;
 
-  if (today < SUMMER_CHALLENGE_LAUNCH_DATE) {
+  if (targetDate < SUMMER_CHALLENGE_LAUNCH_DATE) {
     return res.status(400).json({ error: 'The Inspire Challenge has not launched yet.' });
   }
-  if (isSundayPT()) {
-    return res.status(400).json({
-      error: 'Today is Sunday — your rest day. The Inspire Challenge is not required today.',
-    });
+  if (!isEligibleSubmissionDate(targetDate)) {
+    return res.status(400).json({ error: eligibilityMessageFor(targetDate) });
   }
 
-  const existing = await findByUserAndDate(req.user.id, today);
+  const existing = await findByUserAndDate(req.user.id, targetDate);
   if (existing) {
-    return res.status(409).json({ error: 'You have already submitted your Inspire Challenge points for today.' });
+    return res.status(409).json({ error: 'You have already submitted your Inspire Challenge points for that date.' });
   }
 
   const values = {
@@ -98,9 +132,9 @@ router.post('/', async (req, res) => {
   };
 
   const totalPoints = calculateSummerPoints(values);
-  const record = await insertSummerEntry(req.user.id, today, values, totalPoints);
+  const record = await insertSummerEntry(req.user.id, targetDate, values, totalPoints);
 
-  res.status(201).json({ totalPoints: Number(record.total_points) });
+  res.status(201).json({ date: targetDate, totalPoints: Number(record.total_points) });
 });
 
 export default router;

@@ -44,9 +44,9 @@ export default function FitnessWeeklyGoalCard({ goal, onRefresh, onCelebrate }) 
         <div className="flex-1">
           <h3 className="font-semibold text-navy">{goal.name}</h3>
           {recap?.todaysActivity ? (
-            <p className="text-sm text-navy/70">Today: {recap.todaysActivity}</p>
+            <p className="text-sm text-ink-secondary">Today: {recap.todaysActivity}</p>
           ) : (
-            <p className="text-sm text-navy/60">Today is a rest day.</p>
+            <p className="text-sm text-ink-secondary">Today is a rest day.</p>
           )}
         </div>
       </div>
@@ -58,14 +58,14 @@ export default function FitnessWeeklyGoalCard({ goal, onRefresh, onCelebrate }) 
           <button onClick={() => logDay('completed')} disabled={submitting} className="btn-bubble flex-1 py-2 text-sm text-navy gradient-goals">
             Log It
           </button>
-          <button onClick={() => logDay('rest')} disabled={submitting} className="flex-1 rounded-lg py-2 text-sm font-semibold text-navy/60 border border-border/16 disabled:opacity-60">
+          <button onClick={() => logDay('rest')} disabled={submitting} className="flex-1 rounded-lg py-2 text-sm font-semibold text-ink-secondary border border-border/16 disabled:opacity-60">
             Rest Day
           </button>
         </div>
       ) : null}
 
       {recap && (
-        <p className="text-xs text-navy/60">
+        <p className="text-xs text-ink-secondary">
           {recap.completedThisWeek}/{recap.activeDaysCount} active days completed this week
         </p>
       )}

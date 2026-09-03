@@ -44,7 +44,7 @@ export default function Login() {
         <div className="rise-in stagger-2 bubble-card w-full p-7 sm:p-9">
           <div className="text-center mb-7">
             <h1 className="bubble-heading text-3xl sm:text-[2.25rem] leading-tight">Welcome Back!</h1>
-            <p className="text-sm text-navy/55 mt-2 max-w-xs mx-auto">
+            <p className="text-sm text-ink-secondary mt-2 max-w-xs mx-auto">
               Your daily space to reflect, grow, and feel inspired.
             </p>
           </div>
@@ -91,7 +91,7 @@ export default function Login() {
             </div>
           </form>
 
-          <p className="rise-in stagger-4 text-sm text-navy/55 text-center mt-6">
+          <p className="rise-in stagger-4 text-sm text-ink-secondary text-center mt-6">
             Don't have an account?{' '}
             <Link to="/signup" className="font-semibold text-link hover:opacity-80 transition-opacity">
               Sign up

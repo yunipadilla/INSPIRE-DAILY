@@ -57,6 +57,10 @@ module.exports = {
         mint: token('--color-mint'),
         yellow: token('--color-yellow'),
         link: token('--color-link'),
+        // Theme-invariant dark text for content sitting on a solid brand-
+        // accent fill (a selected pill, a colored badge, a destructive
+        // button) — see this token's own comment in index.css for why.
+        onbrand: token('--color-on-brand'),
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

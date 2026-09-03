@@ -98,7 +98,7 @@ export default function Signup() {
       return (
         <AuthLayout>
           <h1 className="text-xl font-bold text-navy mb-3">Almost there!</h1>
-          <p className="text-navy/80">{result.message}</p>
+          <p className="text-ink-secondary">{result.message}</p>
           <Link to="/login" className="inline-block mt-6 text-sm font-semibold text-link">
             Back to login
           </Link>
@@ -111,7 +111,7 @@ export default function Signup() {
         <h1 className="text-xl font-bold text-navy mb-3">
           Welcome to Inspire Daily, {form.firstName}! 🎉
         </h1>
-        <p className="text-navy/80">Your account is ready — let's get started.</p>
+        <p className="text-ink-secondary">Your account is ready — let's get started.</p>
         <button
           onClick={() => navigate('/app', { state: { justSignedUp: true, firstName: form.firstName } })}
           className="btn-bubble w-full py-2.5 text-white gradient-rainbow mt-6"
@@ -190,7 +190,7 @@ export default function Signup() {
           </Field>
         )}
 
-        <label className="flex items-center gap-2 text-sm text-navy/80">
+        <label className="flex items-center gap-2 text-sm text-ink-secondary">
           <input type="checkbox" checked={form.quoteOfDay} onChange={(e) => update('quoteOfDay', e.target.checked)} />
           Send me a Quote of the Day
         </label>
@@ -209,7 +209,7 @@ export default function Signup() {
           {submitting ? 'Creating account…' : 'Sign up'}
         </button>
       </form>
-      <p className="text-sm text-navy/60 text-center mt-4">
+      <p className="text-sm text-ink-secondary text-center mt-4">
         Already have an account?{' '}
         <Link to="/login" className="font-semibold text-link">
           Log in
@@ -227,7 +227,7 @@ function Field({ label, required, hint, children }) {
         {required && <span className="text-danger"> *</span>}
       </label>
       {children}
-      {hint && <p className="text-xs text-navy/60 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-ink-secondary mt-1">{hint}</p>}
     </div>
   );
 }

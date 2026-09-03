@@ -1,12 +1,12 @@
 export default function StaffTaskHub({ signups }) {
   return (
     <div className="card divide-y divide-border/8">
-      {signups.length === 0 && <p className="p-4 text-sm text-navy/60">No one has signed up for a task yet.</p>}
+      {signups.length === 0 && <p className="p-4 text-sm text-ink-secondary">No one has signed up for a task yet.</p>}
       {signups.map((s) => (
         <div key={s.id} className="p-3 flex items-center justify-between gap-2">
           <div className="min-w-0">
             <p className="text-sm font-medium text-navy truncate">{s.taskTitle}</p>
-            <p className="text-xs text-navy/60">
+            <p className="text-xs text-ink-secondary">
               {s.userName} · {s.appRole}
             </p>
           </div>

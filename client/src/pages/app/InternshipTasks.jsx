@@ -17,7 +17,7 @@ function WeeklyHoursChart({ weeks }) {
   }));
   return (
     <div className="card p-4">
-      <p className="text-xs font-bold uppercase tracking-wide text-navy/60 mb-2">Hours logged — last 6 weeks</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary mb-2">Hours logged — last 6 weeks</p>
       <div style={{ width: '100%', height: 120 }}>
         <ResponsiveContainer>
           <BarChart data={data} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
@@ -94,7 +94,7 @@ export default function InternshipTasks() {
     await refreshAll();
   }
 
-  if (!tasks || !mySignups) return <div className="py-10 text-center text-navy/60">Loading…</div>;
+  if (!tasks || !mySignups) return <div className="py-10 text-center text-ink-secondary">Loading…</div>;
 
   const availableTasks = tasks.filter((t) => !t.mySignup);
   const inProgress = mySignups.filter((s) => s.status === 'in_progress');
@@ -111,7 +111,7 @@ export default function InternshipTasks() {
       <section>
         <SectionHeader icon="✅" iconBg="rgb(var(--color-success) / 0.16)" title="Today's Checklist" />
         {inProgress.length === 0 && completed.length === 0 && (
-          <p className="text-sm text-navy/60">You haven't signed up for any tasks yet.</p>
+          <p className="text-sm text-ink-secondary">You haven't signed up for any tasks yet.</p>
         )}
         <div className="space-y-2">
           {inProgress.map((s) => (
@@ -125,7 +125,7 @@ export default function InternshipTasks() {
 
       <section>
         <SectionHeader icon="🗂️" iconBg="rgb(var(--color-mint) / 0.25)" title="Available Tasks" />
-        {availableTasks.length === 0 && <p className="text-sm text-navy/60">No open tasks right now.</p>}
+        {availableTasks.length === 0 && <p className="text-sm text-ink-secondary">No open tasks right now.</p>}
         <div className="space-y-2">
           {availableTasks.map((t) => (
             <TaskBoardCard key={t.id} task={t} onSignUp={handleSignUp} signingUp={signingUpId === t.id} />

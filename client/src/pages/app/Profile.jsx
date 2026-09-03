@@ -41,7 +41,7 @@ export default function Profile() {
     navigate('/login');
   }
 
-  if (!data) return <div className="py-10 text-center text-navy/60">Loading…</div>;
+  if (!data) return <div className="py-10 text-center text-ink-secondary">Loading…</div>;
 
   const { user, stats, badges, timeline, calendar, hasHQAccess } = data;
   const statValues = [stats.streakCount, stats.badgesEarned, stats.goalsCompleted, stats.daysInProgram];
@@ -58,18 +58,18 @@ export default function Profile() {
     <div className="py-4 space-y-6">
       <div className="gradient-hero gradient-rainbow p-6">
         <div className="relative z-10 flex flex-col items-center text-center gap-2">
-          <div className="w-24 h-24 rounded-full bg-white/20 ring-4 ring-white/40 flex items-center justify-center text-3xl font-bold text-white overflow-hidden shadow-md">
+          <div className="w-24 h-24 rounded-full bg-onbrand/10 ring-4 ring-onbrand/25 flex items-center justify-center text-3xl font-bold text-onbrand overflow-hidden shadow-md">
             {user.profilePhotoUrl ? (
               <img src={user.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
             ) : (
               `${user.firstName[0]}${user.lastName[0]}`
             )}
           </div>
-          <h1 className="text-xl font-bold text-white drop-shadow-sm">{user.fullName}</h1>
-          <span className="text-[10px] font-bold uppercase px-3 py-1 rounded-full bg-white/25 text-white">
+          <h1 className="text-xl font-bold text-onbrand">{user.fullName}</h1>
+          <span className="text-[10px] font-bold uppercase px-3 py-1 rounded-full bg-onbrand/15 text-onbrand">
             {user.appRole}
           </span>
-          <p className="text-xs text-white/80">{stats.daysInProgram} days in the program</p>
+          <p className="text-xs text-onbrand/85">{stats.daysInProgram} days in the program</p>
         </div>
       </div>
 
@@ -84,13 +84,13 @@ export default function Profile() {
           icon="🏅"
           iconBg="rgb(var(--color-primary) / 0.16)"
           title="Badge Wall"
-          action={<span className="text-xs font-semibold text-navy/60">{totalBadges} earned</span>}
+          action={<span className="text-xs font-semibold text-ink-secondary">{totalBadges} earned</span>}
         />
         <div className="card p-4 space-y-4">
           {BADGE_CATEGORIES.map((cat) => (
             <div key={cat.key}>
-              <h3 className="text-xs font-semibold text-navy/60 mb-2">
-                {cat.label} {badges[cat.key].length > 0 && <span className="text-navy/30">({badges[cat.key].length})</span>}
+              <h3 className="text-xs font-semibold text-ink-secondary mb-2">
+                {cat.label} {badges[cat.key].length > 0 && <span className="text-ink-muted">({badges[cat.key].length})</span>}
               </h3>
               <div className="flex gap-3 flex-wrap">
                 {(badges[cat.key].length ? badges[cat.key] : [null, null, null]).map((b, i) => (
@@ -113,11 +113,11 @@ export default function Profile() {
         <div className="card p-4 grid grid-cols-2 divide-x divide-border/8 text-center">
           <div>
             <div className="text-2xl font-extrabold text-navy">{stats.goalsCompleted}</div>
-            <div className="text-[10px] uppercase text-navy/60 font-semibold">Goals completed</div>
+            <div className="text-[10px] uppercase text-ink-secondary font-semibold">Goals completed</div>
           </div>
           <div>
             <div className="text-2xl font-extrabold text-navy">{stats.tasksCompleted}</div>
-            <div className="text-[10px] uppercase text-navy/60 font-semibold">Tasks completed</div>
+            <div className="text-[10px] uppercase text-ink-secondary font-semibold">Tasks completed</div>
           </div>
         </div>
       </section>
@@ -134,7 +134,7 @@ export default function Profile() {
               />
             ))}
           </div>
-          <p className="text-[10px] text-navy/60 mt-2 uppercase tracking-wide">Daily Scores submitted</p>
+          <p className="text-[10px] text-ink-secondary mt-2 uppercase tracking-wide">Daily Scores submitted</p>
         </div>
       </section>
 
@@ -148,7 +148,7 @@ export default function Profile() {
                 <div className="flex-1 min-w-0">
                   <p className="truncate">{item.description}</p>
                 </div>
-                <span className="text-xs text-navy/60 whitespace-nowrap">
+                <span className="text-xs text-ink-secondary whitespace-nowrap">
                   {formatDateLabel(item.occurredAt.slice(0, 10))}
                 </span>
               </div>
@@ -157,7 +157,7 @@ export default function Profile() {
         </section>
       )}
 
-      <button onClick={handleLogout} className="pressable w-full rounded-lg py-2.5 font-semibold text-navy/70 border border-border/16">
+      <button onClick={handleLogout} className="pressable w-full rounded-lg py-2.5 font-semibold text-ink-secondary border border-border/16">
         Log out
       </button>
 
@@ -166,7 +166,7 @@ export default function Profile() {
           <SectionHeader icon="🧑‍💼" iconBg="rgb(var(--color-primary) / 0.16)" title="Staff Tools" />
           <Link
             to="/hq"
-            className="pressable card card-lift p-4 flex items-center justify-between gradient-rainbow text-white font-semibold shadow-md"
+            className="pressable card card-lift p-4 flex items-center justify-between gradient-rainbow text-onbrand font-semibold shadow-md"
           >
             Open Inspire HQ
             <span>→</span>
@@ -182,7 +182,7 @@ function StatCard({ value, label, emoji, accent }) {
     <div className="card p-3" style={{ borderTop: `3px solid ${accent}` }}>
       <div className="text-base mb-0.5">{emoji}</div>
       <div className="text-lg font-extrabold text-navy">{value}</div>
-      <div className="text-[10px] uppercase text-navy/60">{label}</div>
+      <div className="text-[10px] uppercase text-ink-secondary">{label}</div>
     </div>
   );
 }

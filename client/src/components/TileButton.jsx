@@ -8,7 +8,7 @@ export default function TileButton({ label, sublabel, active, onClick }) {
       }`}
     >
       <div className="text-sm text-navy">{label}</div>
-      {sublabel && <div className="text-xs text-navy/60 mt-0.5">{sublabel}</div>}
+      {sublabel && <div className="text-xs text-ink-secondary mt-0.5">{sublabel}</div>}
     </button>
   );
 }

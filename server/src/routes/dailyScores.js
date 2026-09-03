@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { dailyScoreSchema } from '../lib/validators.js';
-import { ptDateString, ptDayOfWeek, isSundayPT, isBeforeNoonPT, addDays, deadlineLabelFor } from '../config/pacificTime.js';
+import { ptDayOfWeek } from '../config/pacificTime.js';
+import { getSubmissionWindow, isEligibleSubmissionDate, eligibilityMessageFor } from '../lib/submissionWindow.js';
 import {
   findByUserAndDate,
   listDatesForUser,
@@ -12,83 +13,85 @@ import { updateStreakFields } from '../repositories/users.js';
 import { postCelebration } from '../repositories/celebrationFeed.js';
 
 const router = Router();
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/**
- * Yesterday is only ever a valid submission target as an explicit catch-up
- * action, never a silent default: before noon PT (streakEngine's own grace
- * window), a non-Sunday yesterday that the user hasn't submitted yet. Used
- * both to advertise the option on GET /today and to validate an explicit
- * `date` on POST — the caller must ask for it, it's never assumed.
- */
-async function catchUpWindow(userId) {
-  const today = ptDateString();
-  const yesterday = addDays(today, -1);
-  if (!isBeforeNoonPT() || ptDayOfWeek(yesterday) === 0) {
-    return { available: false, date: yesterday };
-  }
-  const yesterdayRecord = await findByUserAndDate(userId, yesterday);
-  return {
-    available: !yesterdayRecord,
-    date: yesterday,
-    deadlineLabel: deadlineLabelFor(yesterday),
-  };
+function dayStatus(existing) {
+  return existing
+    ? {
+        displayName: existing.display_name,
+        challenges: existing.challenges,
+        earnedWay: existing.earned_way,
+        volunteerHours: existing.volunteer_hours,
+        bestSelf: existing.best_self,
+        ceoMindset: existing.ceo_mindset,
+        grit: existing.grit,
+        happiness: existing.happiness,
+        sleep: existing.sleep,
+        goalsWorkedOn: existing.goals_worked_on,
+        totalScore: existing.total_score,
+      }
+    : null;
 }
 
+/**
+ * Everything the UI needs to render the Reflection Date chooser and decide
+ * what to pre-select — the server is authoritative on eligibility, the
+ * client only ever displays what this endpoint says. Both today's and
+ * yesterday's (if in-window) existing-submission state are returned in one
+ * call so the UI can switch between them without a second round trip.
+ */
 router.get('/today', requireAuth, async (req, res) => {
-  const today = ptDateString();
-  const sunday = isSundayPT();
-  const existing = sunday ? null : await findByUserAndDate(req.user.id, today);
-  const catchUp = sunday ? { available: false, date: addDays(today, -1) } : await catchUpWindow(req.user.id);
+  const w = getSubmissionWindow();
+
+  if (w.todayIsSunday) {
+    return res.json({
+      window: w,
+      today: { date: w.today, isSunday: true, alreadySubmitted: false, existing: null },
+      yesterday: null,
+      streakCount: req.user.streak_count,
+      streakShields: req.user.streak_shields,
+    });
+  }
+
+  const [todayExisting, yesterdayExisting] = await Promise.all([
+    findByUserAndDate(req.user.id, w.today),
+    w.yesterdayEligible ? findByUserAndDate(req.user.id, w.yesterday) : Promise.resolve(null),
+  ]);
 
   res.json({
-    date: today,
-    isSunday: sunday,
-    alreadySubmitted: Boolean(existing),
-    existing: existing
+    window: w,
+    today: {
+      date: w.today,
+      isSunday: false,
+      alreadySubmitted: Boolean(todayExisting),
+      existing: dayStatus(todayExisting),
+    },
+    yesterday: w.yesterdayEligible
       ? {
-          displayName: existing.display_name,
-          challenges: existing.challenges,
-          earnedWay: existing.earned_way,
-          volunteerHours: existing.volunteer_hours,
-          bestSelf: existing.best_self,
-          ceoMindset: existing.ceo_mindset,
-          grit: existing.grit,
-          happiness: existing.happiness,
-          sleep: existing.sleep,
-          goalsWorkedOn: existing.goals_worked_on,
-          totalScore: existing.total_score,
+          date: w.yesterday,
+          eligible: true,
+          alreadySubmitted: Boolean(yesterdayExisting),
+          existing: dayStatus(yesterdayExisting),
         }
-      : null,
+      : {
+          date: w.yesterday,
+          eligible: false,
+          isSunday: ptDayOfWeek(w.yesterday) === 0,
+          message: eligibilityMessageFor(w.yesterday),
+        },
     streakCount: req.user.streak_count,
     streakShields: req.user.streak_shields,
-    deadlineLabel: deadlineLabelFor(today),
-    catchUp,
   });
 });
 
 router.post('/', requireAuth, async (req, res) => {
-  if (isSundayPT()) {
-    return res.status(400).json({
-      error: 'Today is Sunday — your rest day. Daily Scores are not required today.',
-    });
-  }
-
-  const today = ptDateString();
   const requestedDate = req.body?.date;
-  let targetDate = today;
+  // No `date` supplied at all falls back to today — the only implicit
+  // default the server itself will ever apply. Any explicit date, valid or
+  // not, is validated as given and never silently rewritten.
+  const targetDate = requestedDate !== undefined ? requestedDate : getSubmissionWindow().today;
 
-  // Yesterday is accepted ONLY as an explicit, validated catch-up request —
-  // never inferred. Anything else supplied as `date` is rejected outright.
-  if (requestedDate !== undefined && requestedDate !== today) {
-    if (!DATE_RE.test(requestedDate)) {
-      return res.status(400).json({ error: 'Invalid date.' });
-    }
-    const catchUp = await catchUpWindow(req.user.id);
-    if (requestedDate !== catchUp.date || !catchUp.available) {
-      return res.status(400).json({ error: 'That date is not open for submission.' });
-    }
-    targetDate = catchUp.date;
+  if (!isEligibleSubmissionDate(targetDate)) {
+    return res.status(400).json({ error: eligibilityMessageFor(targetDate) });
   }
 
   const parsed = dailyScoreSchema.safeParse(req.body);
@@ -133,6 +136,7 @@ router.post('/', requireAuth, async (req, res) => {
   }
 
   res.status(201).json({
+    date: targetDate,
     totalScore: record.total_score,
     streakCount,
     streakShields,

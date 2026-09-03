@@ -40,6 +40,18 @@
   --color-mint: 110 231 183;
   --color-yellow: 253 230 138;
   --color-link: 79 70 229; /* dedicated token for inline text links — same value as the new focus-ring, ~4.8:1 on white/surfaces. Distinct from --color-blue/--color-primary, which stay as-is for use as backgrounds/accents (not reading text) */
+
+  /* Deliberately NOT redefined in :root.dark — same theme-invariant-by-design
+     exception already used for the medal metal tones and the wordmark
+     gradient (see this file's own header comment). Every brand accent color
+     in this palette (primary/success/warning/lavender/blue/peach/mint/
+     yellow) is light-to-mid-tone in BOTH themes, so white text on a solid
+     fill of any of them fails contrast badly in both light and dark mode —
+     confirmed by direct calculation (as low as 1.25:1). Dark navy text reads
+     comfortably on every one of them instead (6.7:1-13.7:1), so this is the
+     one text color content sitting on a solid accent fill (a selected pill,
+     a colored badge, a destructive button) should use, regardless of theme. */
+  --color-on-brand: 26 26 46;
 }
 
 :root.dark {
@@ -88,6 +100,28 @@ body {
 .gradient-internship-tasks { background-image: linear-gradient(135deg, #bbf7d0, #6ee7b7); }
 .gradient-inspire-challenge { background-image: linear-gradient(135deg, #fef9c3, #fed7aa); }
 .gradient-rainbow { background-image: linear-gradient(135deg, #6ee7b7, #38bdf8, #818cf8, #e879f9, #fb7185); }
+
+/* These four tab-color gradients are themselves theme-invariant pastels (by
+   design, same brand identity in both themes) — but `text-navy`/`text-ink-*`
+   utility classes read the theme-flipped --color-text-* tokens, which turn
+   near-white in dark mode. Near-white text on a light pastel gradient is a
+   severe, confirmed failure (as low as 1.02:1 — effectively invisible), even
+   though the exact same markup is perfectly readable in light mode. Rather
+   than hunting down and swapping the text color class on every card that
+   uses one of these gradients, pin the text tokens themselves back to their
+   light-mode (dark) values for anything nested inside — every existing
+   `text-navy`/`text-ink-secondary`/`text-ink-muted` usage on these cards is
+   correct again with no JSX changes, in both themes, verified 6.7:1-15.9:1. */
+.gradient-daily-scores,
+.gradient-goals,
+.gradient-internship-tasks,
+.gradient-inspire-challenge,
+.gradient-rainbow,
+.gradient-hero {
+  --color-text-primary: 26 26 46;
+  --color-text-secondary: 75 75 99;
+  --color-text-muted: 110 110 134;
+}
 
 .text-gradient-inspire {
   background-image: linear-gradient(90deg, #6ee7b7, #38bdf8, #818cf8, #e879f9, #fb7185);
@@ -172,6 +206,23 @@ body {
   outline: none;
   border-color: rgb(var(--color-focus-ring));
   box-shadow: 0 0 0 3px rgb(var(--color-focus-ring) / 0.15);
+}
+.input:disabled,
+.input-bubble:disabled {
+  color: rgb(var(--color-text-secondary));
+  background: rgb(var(--color-surface-soft));
+  cursor: not-allowed;
+}
+/* Explicit placeholder color tied to the theme token system — the browser
+   default is a UA-chosen gray that never adapts to dark mode and has read
+   as low as ~2.5:1 on a dark input. --color-text-muted is tuned to clear
+   4.5:1 on every surface in both themes; full opacity (not a faded `/60`)
+   since a placeholder is already visually distinct by being italic-free
+   sample text, not by being harder to read than it needs to be. */
+.input::placeholder,
+.input-bubble::placeholder {
+  color: rgb(var(--color-text-muted));
+  opacity: 1;
 }
 
 /* Slim, unobtrusive scrollbar for the horizontal Daily Scores sliders. */
@@ -465,7 +516,13 @@ body {
   border-radius: 999px;
   font-weight: 600;
   background: rgb(var(--color-danger));
-  color: white;
+  /* Not white: white-on-danger reads 4.70:1 in light mode but only 2.69:1 in
+     dark mode (--color-danger is deliberately lighter/pinker there for
+     legibility as *text*, which makes it a poor solid fill for white to sit
+     on). Dark on-brand text reads 6.34:1 in dark mode and a solid 3.63:1 in
+     light — comfortably clears the large-text/bold-button-label threshold in
+     both themes, where pure white cleared neither reliably. */
+  color: rgb(var(--color-on-brand));
   box-shadow: 0 8px 20px -8px rgb(var(--color-danger) / 0.5);
   transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
 }

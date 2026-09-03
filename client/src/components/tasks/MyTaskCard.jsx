@@ -25,11 +25,11 @@ export default function MyTaskCard({ signup, onComplete }) {
             isCompleted ? 'border-success bg-success' : 'border-border/24'
           }`}
         >
-          {isCompleted && <span className="text-white text-[10px] leading-none">✓</span>}
+          {isCompleted && <span className="text-onbrand text-[10px] leading-none">✓</span>}
         </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <h3 className={`font-semibold text-navy ${isCompleted ? 'line-through text-navy/60' : ''}`}>
+            <h3 className={`font-semibold text-navy ${isCompleted ? 'line-through text-ink-secondary' : ''}`}>
               {signup.title}
             </h3>
             <span
@@ -40,12 +40,12 @@ export default function MyTaskCard({ signup, onComplete }) {
               {isCompleted ? 'Completed' : 'In Progress'}
             </span>
           </div>
-          {signup.description && <p className="text-sm text-navy/60 mt-1">{signup.description}</p>}
+          {signup.description && <p className="text-sm text-ink-secondary mt-1">{signup.description}</p>}
         </div>
       </div>
 
       {isCompleted ? (
-        <p className="text-xs text-navy/60">
+        <p className="text-xs text-ink-secondary">
           {signup.hoursSpent ? `${signup.hoursSpent} hrs · ` : ''}
           Completed {signup.completedDate}
         </p>

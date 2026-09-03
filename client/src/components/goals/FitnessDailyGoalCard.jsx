@@ -34,7 +34,7 @@ export default function FitnessDailyGoalCard({ goal, onRefresh, onCelebrate }) {
         <ProgressRing value={completedCount} max={goal.details.totalDays || 1} size={52} strokeWidth={5} colorVar="--color-mint" />
         <div className="flex-1">
           <h3 className="font-semibold text-navy">{goal.name}</h3>
-          <p className="text-sm text-navy/60">{goal.details.dailyTarget}</p>
+          <p className="text-sm text-ink-secondary">{goal.details.dailyTarget}</p>
         </div>
       </div>
 
@@ -45,7 +45,7 @@ export default function FitnessDailyGoalCard({ goal, onRefresh, onCelebrate }) {
           <button onClick={() => logDay('completed')} disabled={submitting} className="btn-bubble flex-1 py-2 text-sm text-navy gradient-goals">
             Log It
           </button>
-          <button onClick={() => logDay('rest')} disabled={submitting} className="flex-1 rounded-lg py-2 text-sm font-semibold text-navy/60 border border-border/16 disabled:opacity-60">
+          <button onClick={() => logDay('rest')} disabled={submitting} className="flex-1 rounded-lg py-2 text-sm font-semibold text-ink-secondary border border-border/16 disabled:opacity-60">
             Rest Day
           </button>
         </div>

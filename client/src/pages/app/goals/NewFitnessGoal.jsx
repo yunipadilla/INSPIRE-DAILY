@@ -88,13 +88,13 @@ export default function NewFitnessGoal() {
       <div className="flex gap-2 pt-2 mb-4">
         <button
           onClick={() => setSubType('daily')}
-          className={`pressable flex-1 rounded-full py-2 text-sm font-semibold transition-colors ${subType === 'daily' ? 'btn-bubble gradient-goals text-navy' : 'border border-border/16 text-navy/60'}`}
+          className={`pressable flex-1 rounded-full py-2 text-sm font-semibold transition-colors ${subType === 'daily' ? 'btn-bubble gradient-goals text-navy' : 'border border-border/16 text-ink-secondary'}`}
         >
           Daily Target
         </button>
         <button
           onClick={() => setSubType('weekly')}
-          className={`pressable flex-1 rounded-full py-2 text-sm font-semibold transition-colors ${subType === 'weekly' ? 'btn-bubble gradient-goals text-navy' : 'border border-border/16 text-navy/60'}`}
+          className={`pressable flex-1 rounded-full py-2 text-sm font-semibold transition-colors ${subType === 'weekly' ? 'btn-bubble gradient-goals text-navy' : 'border border-border/16 text-ink-secondary'}`}
         >
           Weekly Schedule
         </button>
@@ -146,7 +146,7 @@ export default function NewFitnessGoal() {
             <div className="space-y-2">
               {DAYS.map((day) => (
                 <div key={day} className="flex items-center gap-2">
-                  <span className="w-24 text-sm text-navy/70">{day}</span>
+                  <span className="w-24 text-sm text-ink-secondary">{day}</span>
                   <select className="input" value={schedule[day]} onChange={(e) => setDaySchedule(day, e.target.value)}>
                     <option value="">Rest</option>
                     {activities.filter(Boolean).map((a) => (

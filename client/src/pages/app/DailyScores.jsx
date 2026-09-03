@@ -3,21 +3,57 @@ import ScoreSlider from '../../components/ScoreSlider';
 import GoalCelebration from '../../components/goals/GoalCelebration';
 import { apiFetch } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
-import { formatDateLabel } from '../../lib/pacificTime';
+import { formatDateLabel, formatFullDateLabel } from '../../lib/pacificTime';
 
+/** Contextual question text — the server never dictates wording, only
+ * eligibility; "today" vs "yesterday" phrasing lives here, driven by which
+ * day the participant selected. Sleep intentionally reads the same either
+ * way ("last night") — forcing "yesterday" grammar onto it reads awkwardly
+ * and the meaning stays clear regardless of which day is selected. */
 const QUESTIONS = [
-  { key: 'bestSelf', label: 'Best Self', question: 'How close were you to your best self today?', low: 'Worst Self', high: 'Best Self' },
-  { key: 'ceoMindset', label: 'CEO Mindset', question: 'How proactive and self-starting were you today?', low: 'Reactive all day', high: 'Fully in control' },
-  { key: 'grit', label: 'Grit', question: 'How well did you push through hard or boring things?', low: 'Gave up immediately', high: 'Stayed with it all day' },
-  { key: 'happiness', label: 'Happiness', question: 'How would you rate your mood and wellbeing today?', low: 'Really struggling', high: 'Thriving' },
-  { key: 'sleep', label: 'Sleep', question: 'How was your sleep last night?', low: 'Barely slept', high: 'Best sleep ever' },
+  {
+    key: 'bestSelf',
+    label: 'Best Self',
+    question: (y) => (y ? 'How well did you embody your Best Self yesterday?' : 'How close were you to your best self today?'),
+    low: 'Worst Self',
+    high: 'Best Self',
+  },
+  {
+    key: 'ceoMindset',
+    label: 'CEO Mindset',
+    question: (y) => (y ? 'How well did you practice the CEO Mindset yesterday?' : 'How proactive and self-starting were you today?'),
+    low: 'Reactive all day',
+    high: 'Fully in control',
+  },
+  {
+    key: 'grit',
+    label: 'Grit',
+    question: (y) => (y ? 'How much grit did you show yesterday?' : 'How well did you push through hard or boring things?'),
+    low: 'Gave up immediately',
+    high: 'Stayed with it all day',
+  },
+  {
+    key: 'happiness',
+    label: 'Happiness',
+    question: (y) => (y ? 'How happy did you feel yesterday?' : 'How would you rate your mood and wellbeing today?'),
+    low: 'Really struggling',
+    high: 'Thriving',
+  },
+  {
+    key: 'sleep',
+    label: 'Sleep',
+    question: () => 'How was your sleep last night?',
+    low: 'Barely slept',
+    high: 'Best sleep ever',
+  },
 ];
 
 const DEFAULT_SLIDERS = Object.fromEntries(QUESTIONS.map((q) => [q.key, 5]));
 
 export default function DailyScores() {
   const { user } = useAuth();
-  const [today, setToday] = useState(null);
+  const [data, setData] = useState(null);
+  const [selected, setSelected] = useState('today'); // 'today' | 'yesterday'
   const [displayName, setDisplayName] = useState('');
   const [challenges, setChallenges] = useState('');
   const [earnedWay, setEarnedWay] = useState(null);
@@ -28,27 +64,53 @@ export default function DailyScores() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [showCelebration, setShowCelebration] = useState(false);
-  const [catchUpMode, setCatchUpMode] = useState(false);
-  const [submittedDate, setSubmittedDate] = useState(null);
 
   useEffect(() => {
-    apiFetch('/daily-scores/today').then(setToday);
+    apiFetch('/daily-scores/today').then((res) => {
+      setData(res);
+      // The server's defaultDate says which day to preselect (yesterday
+      // while its window is still open, otherwise today) — the client never
+      // computes this itself from wall-clock time.
+      setSelected(res.window.defaultDate === res.window.yesterday ? 'yesterday' : 'today');
+    });
     if (user) setDisplayName(user.fullName);
   }, [user]);
+
+  if (!data) {
+    return <div className="py-10 text-center text-ink-secondary">Loading…</div>;
+  }
+
+  if (data.today.isSunday) {
+    return (
+      <div className="py-16 text-center space-y-3">
+        <div className="text-4xl">☀️</div>
+        <h1 className="text-xl font-bold text-navy">Today is Sunday — your rest day.</h1>
+        <p className="text-ink-secondary max-w-xs mx-auto">
+          Daily Scores are not required today. Enjoy your day off and come back stronger tomorrow.
+        </p>
+      </div>
+    );
+  }
+
+  const isYesterday = selected === 'yesterday' && data.yesterday?.eligible;
+  const activeDate = isYesterday ? data.yesterday.date : data.today.date;
+  const activeDay = isYesterday ? data.yesterday : data.today;
+  const alreadyDone = (result && result.date === activeDate) || activeDay.alreadySubmitted;
+  const streakCount = result?.streakCount ?? data.streakCount;
+  const streakShields = result?.streakShields ?? data.streakShields;
 
   async function handleSubmit() {
     setError('');
     if (earnedWay === null) {
-      setError('Please answer whether you earned your way today.');
+      setError(`Please answer whether you earned your way ${isYesterday ? 'yesterday' : 'today'}.`);
       return;
     }
-    const targetDate = catchUpMode ? today.catchUp.date : today.date;
     setSubmitting(true);
     try {
-      const data = await apiFetch('/daily-scores', {
+      const submitted = await apiFetch('/daily-scores', {
         method: 'POST',
         body: {
-          date: targetDate,
+          date: activeDate,
           displayName,
           challenges,
           earnedWay,
@@ -57,8 +119,7 @@ export default function DailyScores() {
           ...sliders,
         },
       });
-      setResult(data);
-      setSubmittedDate(targetDate);
+      setResult(submitted);
       setShowCelebration(true);
     } catch (err) {
       setError(err.data?.error || err.message);
@@ -67,43 +128,25 @@ export default function DailyScores() {
     }
   }
 
-  if (!today) {
-    return <div className="py-10 text-center text-navy/60">Loading…</div>;
-  }
-
-  if (today.isSunday) {
-    return (
-      <div className="py-16 text-center space-y-3">
-        <div className="text-4xl">☀️</div>
-        <h1 className="text-xl font-bold text-navy">Today is Sunday — your rest day.</h1>
-        <p className="text-navy/60 max-w-xs mx-auto">
-          Daily Scores are not required today. Enjoy your day off and come back stronger tomorrow.
-        </p>
-      </div>
-    );
-  }
-
-  const alreadyDone = today.alreadySubmitted || Boolean(result);
-  const streakCount = result?.streakCount ?? today.streakCount;
-  const streakShields = result?.streakShields ?? today.streakShields;
-
   if (alreadyDone) {
+    const existing = result?.date === activeDate ? null : activeDay.existing;
     return (
       <div className="py-4 space-y-4">
         <Header />
+        <ReflectionDateChooser data={data} selected={selected} onSelect={setSelected} />
         <div className="card p-7 text-center space-y-2.5 gradient-daily-scores">
           <div className="text-4xl">✅</div>
           <h1 className="text-lg font-bold text-navy">
-            Daily Scores submitted for {formatDateLabel(submittedDate ?? today.date)}!
+            Daily Scores submitted for {formatDateLabel(activeDate)}!
           </h1>
-          <p className="text-navy/60 text-sm">
-            Total score: {result?.totalScore ?? today.existing?.totalScore} / 50
+          <p className="text-ink-secondary text-sm">
+            Total score: {result?.date === activeDate ? result.totalScore : existing?.totalScore} / 50
           </p>
-          {result?.earnedShield && (
+          {result?.date === activeDate && result?.earnedShield && (
             <p className="text-sm font-semibold text-success">🛡️ You earned a new streak shield!</p>
           )}
         </div>
-        {showCelebration && (
+        {showCelebration && result?.date === activeDate && (
           <GoalCelebration
             theme="dailyScores"
             message={
@@ -118,51 +161,16 @@ export default function DailyScores() {
     );
   }
 
-  const entryDate = catchUpMode ? today.catchUp.date : today.date;
-  const activeDeadlineLabel = catchUpMode ? today.catchUp.deadlineLabel : today.deadlineLabel;
+  const dayWord = isYesterday ? 'yesterday' : 'today';
 
   return (
     <div className="py-4 space-y-5">
       <Header />
+      <ReflectionDateChooser data={data} selected={selected} onSelect={setSelected} />
 
-      <div className="space-y-2">
-        <div className="flex gap-2" role="group" aria-label="Which day is this entry for?">
-          <button
-            type="button"
-            onClick={() => setCatchUpMode(false)}
-            aria-pressed={!catchUpMode}
-            className={`flex-1 rounded-full py-2.5 text-sm font-bold pressable transition-colors ${
-              !catchUpMode ? 'bg-blue text-white shadow-sm' : 'bg-surface-soft text-navy/60'
-            }`}
-          >
-            Today
-          </button>
-          {today.catchUp.available ? (
-            <button
-              type="button"
-              onClick={() => setCatchUpMode(true)}
-              aria-pressed={catchUpMode}
-              className={`flex-1 rounded-full py-2.5 text-sm font-bold pressable transition-colors ${
-                catchUpMode ? 'bg-warning text-white shadow-sm' : 'bg-surface-soft text-navy/60'
-              }`}
-            >
-              Catch Up For Yesterday
-            </button>
-          ) : (
-            <div
-              className="flex-1 rounded-full py-2.5 text-xs font-semibold text-center bg-surface-soft text-navy/60 flex items-center justify-center px-2"
-              aria-disabled="true"
-            >
-              Yesterday's submission window has closed.
-            </div>
-          )}
-        </div>
-        {catchUpMode && (
-          <p className="text-xs text-warning font-semibold px-1">
-            This entry will be submitted for {formatDateLabel(today.catchUp.date)}, due by{' '}
-            {today.catchUp.deadlineLabel}.
-          </p>
-        )}
+      <div className="rounded-xl bg-surface-soft px-4 py-2.5 flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-wide text-ink-muted">Reflecting on</span>
+        <span className="text-sm font-bold text-navy">{formatFullDateLabel(activeDate)}</span>
       </div>
 
       <div className="card p-5 gradient-daily-scores flex items-center justify-between">
@@ -170,12 +178,12 @@ export default function DailyScores() {
           <span className="text-3xl">🔥</span>
           <div>
             <div className="text-2xl font-extrabold text-navy">{streakCount} day streak</div>
-            <div className="text-xs text-navy/60">
-              {streakCount === 0 ? 'Submit today to start your streak!' : `Submit by ${activeDeadlineLabel}`}
+            <div className="text-xs text-ink-secondary font-medium">
+              {streakCount === 0 ? `Submit ${dayWord} to start your streak!` : `Submit by ${data.window.cutoffLabel} the day after.`}
             </div>
           </div>
         </div>
-        <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-surface-elevated/70 text-navy">
+        <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-surface-elevated/80 text-navy">
           🛡️ {streakShields}/3
         </span>
       </div>
@@ -184,12 +192,12 @@ export default function DailyScores() {
         <Field label="Your Name">
           <input className="input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required />
         </Field>
-        <Field label={catchUpMode ? 'Entry for' : 'Date'}>
-          <div className="input bg-surface-soft text-navy/70 flex items-center justify-between">
-            <span>{formatDateLabel(entryDate)}</span>
-            {catchUpMode && (
-              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-warning/20 text-warning">
-                Catch-up
+        <Field label="Date">
+          <div className="input bg-surface-soft text-ink-secondary flex items-center justify-between">
+            <span>{formatDateLabel(activeDate)}</span>
+            {isYesterday && (
+              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-warning/25 text-navy">
+                Yesterday
               </span>
             )}
           </div>
@@ -197,15 +205,15 @@ export default function DailyScores() {
       </div>
 
       <div className="card p-6 space-y-2">
-        <Field label="What challenges did you face today?">
+        <Field label={`What challenges did you face ${dayWord}?`}>
           <textarea className="input" rows={2} value={challenges} onChange={(e) => setChallenges(e.target.value)} placeholder="Describe any challenges…" />
         </Field>
       </div>
 
       <div className="card p-6 space-y-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-navy/60">Did you earn your way today?</p>
-          <p className="text-xs text-navy/60 mt-1">
+          <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">Did you earn your way {dayWord}?</p>
+          <p className="text-xs text-ink-secondary mt-1">
             Earning your way means contributing to your environment by being the best version of yourself AND
             putting in genuine effort toward your goals and work.
           </p>
@@ -214,14 +222,14 @@ export default function DailyScores() {
           <button
             type="button"
             onClick={() => setEarnedWay(true)}
-            className={`flex-1 rounded-lg py-2.5 text-sm font-semibold border ${earnedWay === true ? 'border-blue bg-blue/15 text-navy' : 'border-border/16 text-navy/60'}`}
+            className={`flex-1 rounded-lg py-2.5 text-sm font-semibold border ${earnedWay === true ? 'border-blue bg-blue/15 text-navy' : 'border-border/25 text-ink-secondary'}`}
           >
             Yes
           </button>
           <button
             type="button"
             onClick={() => setEarnedWay(false)}
-            className={`flex-1 rounded-lg py-2.5 text-sm font-semibold border ${earnedWay === false ? 'border-blue bg-blue/15 text-navy' : 'border-border/16 text-navy/60'}`}
+            className={`flex-1 rounded-lg py-2.5 text-sm font-semibold border ${earnedWay === false ? 'border-blue bg-blue/15 text-navy' : 'border-border/25 text-ink-secondary'}`}
           >
             No
           </button>
@@ -229,7 +237,7 @@ export default function DailyScores() {
       </div>
 
       <div className="card p-6 space-y-2">
-        <Field label="How many volunteer hours did you put in today?" hint="Enter a number between 0–12">
+        <Field label={`How many volunteer hours did you ${isYesterday ? 'complete' : 'put in'} ${dayWord}?`} hint="Enter a number between 0–12">
           <input
             type="number"
             min={0}
@@ -243,13 +251,13 @@ export default function DailyScores() {
 
       <div>
         <h2 className="text-lg font-bold text-navy">Daily Ratings</h2>
-        <p className="text-sm text-navy/60 mb-3">Most people live in the 4–7 range — that is normal. Where do you want to be?</p>
+        <p className="text-sm text-ink-secondary mb-3">Most people live in the 4–7 range — that is normal. Where do you want to be?</p>
         <div className="space-y-3">
           {QUESTIONS.map((q) => (
             <ScoreSlider
               key={q.key}
               label={q.label}
-              question={q.question}
+              question={q.question(isYesterday)}
               lowLabel={q.low}
               highLabel={q.high}
               value={sliders[q.key]}
@@ -260,24 +268,24 @@ export default function DailyScores() {
       </div>
 
       <div className="card p-6 space-y-2">
-        <Field label="What goals did you work on today?">
+        <Field label={`What goals did you work on ${dayWord}?`}>
           <textarea className="input" rows={2} value={goalsWorkedOn} onChange={(e) => setGoalsWorkedOn(e.target.value)} placeholder="Describe the goals you worked on…" />
         </Field>
       </div>
 
-      <div className="rounded-xl bg-primary/8 border border-primary/20 p-3.5 text-sm text-navy/70">
+      <div className="rounded-xl bg-primary/10 border border-primary/25 p-3.5 text-sm text-navy">
         👀 <span className="font-semibold">Before you submit:</span> Double-check that your name and date are
         correct. Submissions cannot be edited after they are sent.
       </div>
 
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {error && <p className="text-sm font-semibold text-danger">{error}</p>}
 
       <button
         onClick={handleSubmit}
         disabled={submitting}
         className="btn-bubble w-full py-3 text-navy gradient-daily-scores"
       >
-        {submitting ? 'Submitting…' : "Submit Today's Score"}
+        {submitting ? 'Submitting…' : `Submit ${isYesterday ? "Yesterday's" : "Today's"} Score`}
       </button>
 
       {showCelebration && (
@@ -295,6 +303,53 @@ export default function DailyScores() {
   );
 }
 
+/**
+ * The Reflection Date chooser — always shows Today; shows Yesterday as a
+ * live option while eligible, or a clearly-labeled locked state once its
+ * window has closed (never a silent disappearance the participant has to
+ * guess about).
+ */
+function ReflectionDateChooser({ data, selected, onSelect }) {
+  const yesterdayEligible = Boolean(data.yesterday?.eligible);
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-bold uppercase tracking-wide text-ink-muted px-1">Reflection Date</p>
+      <div className="flex gap-2" role="group" aria-label="Which day is this entry for?">
+        {yesterdayEligible && (
+          <button
+            type="button"
+            onClick={() => onSelect('yesterday')}
+            aria-pressed={selected === 'yesterday'}
+            className={`flex-1 rounded-xl py-2.5 px-2 text-left pressable transition-colors ${
+              selected === 'yesterday' ? 'bg-warning/90 text-onbrand shadow-sm' : 'bg-surface-soft text-navy'
+            }`}
+          >
+            <div className="text-sm font-bold">Yesterday — {formatDateLabel(data.yesterday.date)}</div>
+            <div className={`text-[11px] font-medium ${selected === 'yesterday' ? 'text-onbrand/85' : 'text-ink-muted'}`}>
+              Finish yesterday's reflection before noon.
+            </div>
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => onSelect('today')}
+          aria-pressed={selected === 'today' || !yesterdayEligible}
+          className={`flex-1 rounded-xl py-2.5 px-2 text-left pressable transition-colors ${
+            selected === 'today' || !yesterdayEligible ? 'bg-blue text-onbrand shadow-sm' : 'bg-surface-soft text-navy'
+          }`}
+        >
+          <div className="text-sm font-bold">Today — {formatDateLabel(data.today.date)}</div>
+        </button>
+      </div>
+      {!yesterdayEligible && data.yesterday?.message && (
+        <p className="text-xs font-semibold text-ink-muted px-1">
+          Yesterday's reflection window closed at 12:00 PM.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function Header() {
   return (
     <div>
@@ -302,7 +357,7 @@ function Header() {
         <span className="text-navy">Daily </span>
         <span className="text-blue">Scores</span>
       </h1>
-      <p className="text-sm text-navy/60 italic">A quiet moment to reflect on your day.</p>
+      <p className="text-sm text-ink-secondary italic">A quiet moment to reflect on your day.</p>
     </div>
   );
 }
@@ -310,9 +365,9 @@ function Header() {
 function Field({ label, hint, children }) {
   return (
     <div>
-      <label className="block text-xs font-bold uppercase tracking-wide text-navy/60 mb-1">{label}</label>
+      <label className="block text-xs font-bold uppercase tracking-wide text-ink-muted mb-1">{label}</label>
       {children}
-      {hint && <p className="text-xs text-navy/60 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-ink-secondary mt-1">{hint}</p>}
     </div>
   );
 }

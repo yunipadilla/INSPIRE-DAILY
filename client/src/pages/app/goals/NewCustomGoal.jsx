@@ -59,7 +59,7 @@ export default function NewCustomGoal() {
               >
                 <input type="radio" name="measureType" className="hidden" checked={measureType === m.value} onChange={() => setMeasureType(m.value)} />
                 <div className="font-semibold text-navy text-sm">{m.label}</div>
-                <div className="text-xs text-navy/60">{m.desc}</div>
+                <div className="text-xs text-ink-secondary">{m.desc}</div>
               </label>
             ))}
           </div>

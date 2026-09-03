@@ -38,7 +38,7 @@ export default function Goals() {
     refresh();
   }, []);
 
-  if (!data) return <div className="py-10 text-center text-navy/60">Loading…</div>;
+  if (!data) return <div className="py-10 text-center text-ink-secondary">Loading…</div>;
 
   return (
     <div className="py-4 space-y-6">
@@ -55,7 +55,7 @@ export default function Goals() {
       <GoalsOverview overview={data.overview} />
 
       <section className="space-y-3">
-        {data.active.length === 0 && <p className="text-sm text-navy/60">No active goals yet — create one to get started!</p>}
+        {data.active.length === 0 && <p className="text-sm text-ink-secondary">No active goals yet — create one to get started!</p>}
         {data.active.map((goal) => {
           const Card = CARD_BY_TYPE[goal.type];
           return Card ? (
@@ -71,7 +71,7 @@ export default function Goals() {
             {data.completed.map((g) => (
               <div key={g.id} className="card p-3 flex items-center justify-between">
                 <span className="text-sm font-medium text-navy">{g.name}</span>
-                <span className="text-xs text-navy/60">✅ {g.completedDate}</span>
+                <span className="text-xs text-ink-secondary">✅ {g.completedDate}</span>
               </div>
             ))}
           </div>

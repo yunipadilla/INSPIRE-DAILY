@@ -47,11 +47,11 @@ export default function AwardBadgeModal({ memberId, onClose, onAwarded }) {
       >
         <div>
           <h2 className="text-lg font-bold text-navy">Award Badge</h2>
-          <p className="text-sm text-navy/60">Choose a badge from the catalog to award this member.</p>
+          <p className="text-sm text-ink-secondary">Choose a badge from the catalog to award this member.</p>
         </div>
 
         {!catalog ? (
-          <p className="text-sm text-navy/60 py-6 text-center">Loading catalog…</p>
+          <p className="text-sm text-ink-secondary py-6 text-center">Loading catalog…</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {catalog.map((b) => (
@@ -76,14 +76,14 @@ export default function AwardBadgeModal({ memberId, onClose, onAwarded }) {
             <Medal icon={selected.iconEmoji} category={selected.badgeType} size={48} />
             <div>
               <p className="text-sm font-bold text-navy">{selected.name}</p>
-              <p className="text-xs text-navy/60">{selected.description}</p>
+              <p className="text-xs text-ink-secondary">{selected.description}</p>
             </div>
           </div>
         )}
 
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wide text-navy/60 mb-1">
-            Reason <span className="normal-case font-normal text-navy/40">(optional)</span>
+          <label className="block text-xs font-bold uppercase tracking-wide text-ink-secondary mb-1">
+            Reason <span className="normal-case font-normal text-ink-muted">(optional)</span>
           </label>
           <textarea
             className="input"

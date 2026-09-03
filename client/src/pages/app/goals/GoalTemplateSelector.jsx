@@ -25,7 +25,7 @@ export default function GoalTemplateSelector() {
             </span>
             <div>
               <div className="font-semibold text-navy">{t.name}</div>
-              <div className="text-sm text-navy/60">{t.desc}</div>
+              <div className="text-sm text-ink-secondary">{t.desc}</div>
             </div>
           </button>
         ))}

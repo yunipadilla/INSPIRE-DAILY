@@ -29,7 +29,7 @@ export default function ParentalConsent() {
   return (
     <AuthLayout>
       <h1 className="text-xl font-bold text-navy mb-3 text-center">Parental Consent</h1>
-      <p className="text-center text-navy/80">
+      <p className="text-center text-ink-secondary">
         {status === 'pending' ? 'Confirming…' : message}
       </p>
     </AuthLayout>

@@ -27,7 +27,7 @@ const MEDAL = ['🥇', '🥈', '🥉'];
 
 function ActionStatusPill({ status }) {
   if (status === 'done') return <span className="text-xs font-bold text-success">✓ Done</span>;
-  if (status === 'rest_day') return <span className="text-xs font-bold text-navy/60">Rest day</span>;
+  if (status === 'rest_day') return <span className="text-xs font-bold text-ink-secondary">Rest day</span>;
   if (status === 'coming_soon' || status === 'hidden')
     return <span className="text-xs font-bold text-ink-muted">Coming soon</span>;
   return <span className="text-xs font-bold text-navy">Start →</span>;
@@ -65,14 +65,14 @@ export default function Home() {
   return (
     <div className="space-y-7">
       {showWelcome && (
-        <div className="card p-4 flex items-center justify-between gap-3 gradient-rainbow text-white shadow-md rise-in">
+        <div className="card p-4 flex items-center justify-between gap-3 gradient-rainbow text-onbrand shadow-md rise-in">
           <p className="text-sm font-semibold">
             Welcome, {location.state?.firstName || user?.firstName}! So glad you're here. 🎉
           </p>
           <button
             onClick={() => setShowWelcome(false)}
             aria-label="Dismiss welcome message"
-            className="pressable text-white/90 text-lg leading-none flex-shrink-0"
+            className="pressable text-onbrand/85 text-lg leading-none flex-shrink-0"
           >
             ×
           </button>
@@ -87,7 +87,7 @@ export default function Home() {
         </h1>
 
         {summary && (
-          <div className="rise-in stagger-1 relative z-10 mt-5 gradient-rainbow rounded-2xl p-5 grid grid-cols-4 gap-2 text-white text-center shadow-md">
+          <div className="rise-in stagger-1 relative z-10 mt-5 gradient-rainbow rounded-2xl p-5 grid grid-cols-4 gap-2 text-onbrand text-center shadow-md">
             <Stat value={summary.stats.streakCount} label="Streak" />
             <Stat value={summary.stats.badgesCount} label="Badges" />
             <Stat value={summary.stats.activeGoalsCount} label="Goals" />
@@ -111,12 +111,12 @@ export default function Home() {
               <p className="text-base font-bold text-navy leading-tight">
                 {FOCUS_COPY[focus.key]?.title || focus.label}
               </p>
-              <p className="text-sm text-navy/60 mt-0.5">{FOCUS_COPY[focus.key]?.sub}</p>
+              <p className="text-sm text-ink-secondary mt-0.5">{FOCUS_COPY[focus.key]?.sub}</p>
             </div>
             <span className="text-navy font-bold text-lg flex-shrink-0">→</span>
           </Link>
         ) : (
-          <div className="card p-5 flex items-center gap-4 gradient-rainbow text-white rise-in">
+          <div className="card p-5 flex items-center gap-4 gradient-rainbow text-onbrand rise-in">
             <span className="text-2xl">🎉</span>
             <p className="text-sm font-semibold">You're all caught up for today. Nice work!</p>
           </div>
@@ -149,7 +149,7 @@ export default function Home() {
               <span className="font-semibold text-navy">
                 {summary.weeklyProgress.submitted} of {summary.weeklyProgress.eligibleDays} days logged
               </span>
-              <span className="text-navy/60">
+              <span className="text-ink-secondary">
                 {Math.round((summary.weeklyProgress.submitted / summary.weeklyProgress.eligibleDays) * 100)}%
               </span>
             </div>
@@ -169,7 +169,7 @@ export default function Home() {
         <SectionHeader icon="🎉" iconBg="rgb(var(--color-lavender) / 0.3)" title="Celebration Feed" />
         <div className="card divide-y divide-border/6 overflow-hidden">
           {feed.length === 0 && (
-            <p className="p-4 text-sm text-navy/60">No celebrations yet — check back soon!</p>
+            <p className="p-4 text-sm text-ink-secondary">No celebrations yet — check back soon!</p>
           )}
           {feed.map((item) => (
             <div key={item.id} className="p-3 flex items-center gap-3 text-sm text-navy">
@@ -182,15 +182,15 @@ export default function Home() {
 
       <section className="opacity-90">
         <SectionHeader icon="🏆" iconBg="rgb(var(--color-primary) / 0.16)" title="Leaderboard" />
-        {leaderboard?.guestNote && <p className="text-xs text-navy/60 mb-2">{leaderboard.guestNote}</p>}
+        {leaderboard?.guestNote && <p className="text-xs text-ink-secondary mb-2">{leaderboard.guestNote}</p>}
         <div className="card divide-y divide-border/6 overflow-hidden">
           {leaderboard?.entries.map((e, i) => (
             <div
               key={e.id}
               className={`flex items-center gap-3 p-3 ${e.isCurrentUser ? 'bg-primary/10' : ''}`}
             >
-              <span className="w-6 text-base text-center">{MEDAL[i] || <span className="text-sm font-bold text-navy/60">{e.rank}</span>}</span>
-              <div className="w-9 h-9 rounded-full gradient-rainbow flex items-center justify-center text-xs font-bold text-white overflow-hidden flex-shrink-0">
+              <span className="w-6 text-base text-center">{MEDAL[i] || <span className="text-sm font-bold text-ink-secondary">{e.rank}</span>}</span>
+              <div className="w-9 h-9 rounded-full gradient-rainbow flex items-center justify-center text-xs font-bold text-onbrand overflow-hidden flex-shrink-0">
                 {e.profilePhotoUrl ? (
                   <img src={e.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
@@ -200,14 +200,14 @@ export default function Home() {
               <span className="flex-1 text-sm font-medium text-navy">
                 {e.firstName} {e.lastInitial}.
               </span>
-              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-surface-soft text-navy/60">
+              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-surface-soft text-ink-secondary">
                 {e.appRole}
               </span>
               <span className="text-sm font-extrabold text-navy">{e.score}</span>
             </div>
           ))}
           {leaderboard && leaderboard.entries.length === 0 && (
-            <p className="p-4 text-sm text-navy/60">No scores yet this month.</p>
+            <p className="p-4 text-sm text-ink-secondary">No scores yet this month.</p>
           )}
         </div>
       </section>

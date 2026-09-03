@@ -22,6 +22,17 @@ export function formatDateLabel(dateStr) {
   });
 }
 
+/** 'YYYY-MM-DD' -> e.g. "Monday, September 1" — the fuller "Reflecting on" /
+ * "Logging activity for" display, spelled out rather than abbreviated. */
+export function formatFullDateLabel(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
 export function greetingFor(firstName) {
   const hour = ptHourNow();
   let part = 'Evening';

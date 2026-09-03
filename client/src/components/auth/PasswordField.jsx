@@ -33,7 +33,7 @@ export default function PasswordField({ label = 'Password', value, onChange, aut
           onClick={() => setVisible((v) => !v)}
           aria-label={visible ? 'Hide password' : 'Show password'}
           aria-pressed={visible}
-          className="absolute right-0.5 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-full text-navy/60 hover:text-navy/80 transition-colors"
+          className="absolute right-0.5 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-full text-ink-secondary hover:text-navy transition-colors"
         >
           {visible ? <EyeOff size={18} /> : <Eye size={18} />}
         </button>

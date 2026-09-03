@@ -11,7 +11,7 @@ export default function ScoreSlider({ label, question, lowLabel, highLabel, valu
 
   return (
     <div className="card p-5">
-      <p className="text-xs font-bold uppercase tracking-wide text-navy/60">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">{label}</p>
       <p className="text-sm font-medium text-navy mt-1 mb-7">{question}</p>
 
       <div className="relative">
@@ -23,7 +23,7 @@ export default function ScoreSlider({ label, question, lowLabel, highLabel, valu
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.6, opacity: 0, y: -6 }}
               transition={{ duration: 0.15 }}
-              className="w-10 h-10 rounded-full bg-blue text-white font-bold flex items-center justify-center shadow-sm"
+              className="w-10 h-10 rounded-full bg-blue text-onbrand font-bold flex items-center justify-center shadow-sm"
             >
               {value}
             </motion.div>
@@ -40,7 +40,7 @@ export default function ScoreSlider({ label, question, lowLabel, highLabel, valu
         />
       </div>
 
-      <div className="flex justify-between text-xs text-navy/60 mt-1.5">
+      <div className="flex justify-between text-xs text-ink-secondary mt-1.5">
         <span>1 — {lowLabel}</span>
         <span>10 — {highLabel}</span>
       </div>

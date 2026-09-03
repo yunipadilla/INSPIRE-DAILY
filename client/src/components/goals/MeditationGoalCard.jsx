@@ -30,11 +30,11 @@ export default function MeditationGoalCard({ goal, onRefresh, onCelebrate }) {
       <div className="flex gap-4">
         <div>
           <div className="text-xl font-extrabold text-navy">{completedDays.size}</div>
-          <div className="text-[10px] uppercase text-navy/60">Day Streak</div>
+          <div className="text-[10px] uppercase text-ink-secondary">Day Streak</div>
         </div>
         <div>
           <div className="text-xl font-extrabold text-navy">{totalMinutes}</div>
-          <div className="text-[10px] uppercase text-navy/60">Total Minutes</div>
+          <div className="text-[10px] uppercase text-ink-secondary">Total Minutes</div>
         </div>
       </div>
 
