@@ -2,6 +2,10 @@ import { Router } from 'express';
 import { listMembers, getMemberProfile } from '../../services/hq/memberService.js';
 import { ALL_APP_ROLES, activateUser, suspendUser, deleteUserPermanently, findById } from '../../repositories/users.js';
 import { requireHQAdmin } from '../../middleware/auth.js';
+import { buildWeeklySummary, buildMonthlySummary } from '../../services/hq/summaryAgentService.js';
+import { renderSummaryPdf } from '../../services/hq/summaryAgentPdf.js';
+import { buildReportRelativePath, saveReportPdf, readReportPdf } from '../../lib/reportStorage.js';
+import { insertReportSummary, listReportSummariesForUser, findReportSummaryById } from '../../repositories/reportSummaries.js';
 
 const router = Router();
 
@@ -210,6 +214,93 @@ router.delete('/:id', requireHQAdmin, async (req, res) => {
   }
   const deleted = await deleteUserPermanently(req.params.id);
   res.json({ deleted: Boolean(deleted) });
+});
+
+// ─── Daily Scores Summary Agent — read-only report generation ──────────────
+// Every route here is already gated to staff/admin/super_admin by
+// requireHQAccess applied in routes/hq/index.js. Generating a summary never
+// writes to daily_scores/summer_entries/goals/task_signups/badges/users —
+// the only writes are the PDF file on disk and its report_summaries metadata
+// row (see summaryAgentService.js's module doc comment).
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MONTH_RE = /^\d{4}-\d{2}$/;
+
+router.post('/:id/summaries', async (req, res) => {
+  if (!UUID_PATTERN.test(req.params.id)) return res.status(400).json({ error: 'Invalid member id.' });
+  const { reportType, weekStart, month } = req.body || {};
+  if (reportType !== 'weekly' && reportType !== 'monthly') {
+    return res.status(400).json({ error: 'reportType must be "weekly" or "monthly".' });
+  }
+  if (weekStart !== undefined && !DATE_RE.test(weekStart)) {
+    return res.status(400).json({ error: 'weekStart must be a YYYY-MM-DD date.' });
+  }
+  if (month !== undefined && !MONTH_RE.test(month)) {
+    return res.status(400).json({ error: 'month must be a YYYY-MM value.' });
+  }
+
+  const summary = reportType === 'weekly' ? await buildWeeklySummary(req.params.id, weekStart) : await buildMonthlySummary(req.params.id, month);
+  if (!summary) return res.status(404).json({ error: 'Member not found.' });
+
+  const pdfBuffer = await renderSummaryPdf(summary);
+  const relativePath = buildReportRelativePath({
+    firstName: summary.user.firstName,
+    lastName: summary.user.lastName,
+    reportType: summary.reportType,
+    periodStart: summary.period.start,
+    periodEnd: summary.period.end,
+  });
+  const { sizeBytes } = await saveReportPdf(relativePath, pdfBuffer);
+  const record = await insertReportSummary({
+    userId: req.params.id,
+    reportType: summary.reportType,
+    periodStart: summary.period.start,
+    periodEnd: summary.period.end,
+    generatedBy: req.user.id,
+    storagePath: relativePath,
+    fileSizeBytes: sizeBytes,
+  });
+
+  res.status(201).json({
+    id: record.id,
+    reportType: record.report_type,
+    periodStart: record.period_start,
+    periodEnd: record.period_end,
+    generatedAt: record.generated_at,
+    fileSizeBytes: record.file_size_bytes,
+    summary,
+  });
+});
+
+router.get('/:id/summaries', async (req, res) => {
+  if (!UUID_PATTERN.test(req.params.id)) return res.status(400).json({ error: 'Invalid member id.' });
+  const rows = await listReportSummariesForUser(req.params.id);
+  res.json({
+    reports: rows.map((r) => ({
+      id: r.id,
+      reportType: r.report_type,
+      periodStart: r.period_start,
+      periodEnd: r.period_end,
+      generatedAt: r.generated_at,
+      fileSizeBytes: r.file_size_bytes,
+    })),
+  });
+});
+
+router.get('/:id/summaries/:reportId/pdf', async (req, res) => {
+  if (!UUID_PATTERN.test(req.params.id) || !UUID_PATTERN.test(req.params.reportId)) {
+    return res.status(400).json({ error: 'Invalid id.' });
+  }
+  const record = await findReportSummaryById(req.params.reportId, req.params.id);
+  if (!record) return res.status(404).json({ error: 'Report not found.' });
+  const buffer = await readReportPdf(record.storage_path);
+  const filename = record.storage_path.split('/').pop();
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader(
+    'Content-Disposition',
+    `${req.query.download ? 'attachment' : 'inline'}; filename="${filename}"`
+  );
+  res.send(buffer);
 });
 
 export default router;

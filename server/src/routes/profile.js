@@ -29,7 +29,7 @@ router.get('/', requireAuth, async (req, res) => {
     // (services/hq/memberService.js), scoped to the signed-in user.
     query(
       `(select 'daily_score' as type, ds.submitted_at as occurred_at,
-               'Submitted Daily Scores (total: ' || ds.total_score || ')' as description
+               'Submitted Daily Scores' as description
           from daily_scores ds where ds.user_id = $1
          order by ds.submitted_at desc limit 10)
        union all

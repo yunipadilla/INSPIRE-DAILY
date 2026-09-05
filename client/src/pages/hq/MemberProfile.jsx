@@ -95,6 +95,85 @@ function AccountActions({ member, isAdmin, onChanged }) {
   );
 }
 
+/**
+ * Daily Scores Summary Agent — staff/admin-only (this whole page already
+ * lives behind HQ's requireHQAccess). Read-only: generating a report never
+ * touches this participant's scores, streaks, points, goals, or badges —
+ * see summaryAgentService.js's module doc comment for the exact guarantee.
+ */
+function SummaryAgentPanel({ memberId }) {
+  const [history, setHistory] = useState(null);
+  const [generating, setGenerating] = useState(null);
+  const [error, setError] = useState('');
+  const [latest, setLatest] = useState(null);
+
+  function loadHistory() {
+    apiFetch(`/hq/members/${memberId}/summaries`).then((d) => setHistory(d.reports)).catch(() => setHistory([]));
+  }
+  useEffect(loadHistory, [memberId]);
+
+  async function generate(reportType) {
+    setError('');
+    setGenerating(reportType);
+    try {
+      const result = await apiFetch(`/hq/members/${memberId}/summaries`, { method: 'POST', body: { reportType } });
+      setLatest(result);
+      loadHistory();
+    } catch (err) {
+      setError(err.data?.error || err.message);
+    } finally {
+      setGenerating(null);
+    }
+  }
+
+  return (
+    <div className="card p-4 space-y-3">
+      <h3 className="text-xs font-bold uppercase tracking-wide text-ink-muted">Daily Scores Summary Agent</h3>
+      <p className="text-xs text-ink-secondary">
+        Generates a read-only PDF report from this participant's real data — reflection trends, participation,
+        goals, and Challenge activity. Never changes scores, streaks, or points.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button className="btn-secondary px-3 py-1.5 text-xs" disabled={Boolean(generating)} onClick={() => generate('weekly')}>
+          {generating === 'weekly' ? 'Generating…' : 'Generate Weekly Summary'}
+        </button>
+        <button className="btn-secondary px-3 py-1.5 text-xs" disabled={Boolean(generating)} onClick={() => generate('monthly')}>
+          {generating === 'monthly' ? 'Generating…' : 'Generate Monthly Summary'}
+        </button>
+      </div>
+      {error && <p className="text-xs text-danger">{error}</p>}
+      {latest && (
+        <div className="rounded-lg bg-surface-soft p-3 text-xs space-y-1">
+          <p className="font-semibold text-navy capitalize">
+            {latest.reportType} report — {latest.periodStart} to {latest.periodEnd}
+          </p>
+          <p className="text-ink-muted">Generated {new Date(latest.generatedAt).toLocaleString()}</p>
+          <div className="flex gap-3 pt-1">
+            <a className="text-link font-semibold" href={`/api/hq/members/${memberId}/summaries/${latest.id}/pdf`} target="_blank" rel="noreferrer">View PDF</a>
+            <a className="text-link font-semibold" href={`/api/hq/members/${memberId}/summaries/${latest.id}/pdf?download=1`}>Download PDF</a>
+          </div>
+        </div>
+      )}
+      {history && history.length > 0 && (
+        <div className="pt-2 border-t border-border/8">
+          <p className="text-[10px] uppercase font-bold text-ink-muted mb-1.5">Report history</p>
+          <div className="space-y-1 max-h-48 overflow-y-auto">
+            {history.map((r) => (
+              <div key={r.id} className="flex items-center justify-between text-xs py-1">
+                <span className="text-navy capitalize">{r.reportType} · {r.periodStart} to {r.periodEnd}</span>
+                <div className="flex gap-2 flex-shrink-0">
+                  <a className="text-link" href={`/api/hq/members/${memberId}/summaries/${r.id}/pdf`} target="_blank" rel="noreferrer">View</a>
+                  <a className="text-link" href={`/api/hq/members/${memberId}/summaries/${r.id}/pdf?download=1`}>Download</a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MemberProfile() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -244,6 +323,7 @@ export default function MemberProfile() {
               </table>
             </div>
           )}
+          <SummaryAgentPanel memberId={id} />
         </div>
       )}
 

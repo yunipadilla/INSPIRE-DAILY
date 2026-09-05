@@ -43,19 +43,3 @@ export async function insertDailyScore(userId, date, values) {
   );
   return rows[0];
 }
-
-/** Sum of total_score for a user within [startDate, endDate] inclusive, e.g. for the current month. */
-export async function monthlyLeaderboard(startDate, endDate) {
-  const { rows } = await query(
-    `select
-       u.id, u.first_name, u.last_name, u.app_role, u.profile_photo_url,
-       coalesce(sum(ds.total_score), 0)::int as score
-     from users u
-     left join daily_scores ds on ds.user_id = u.id and ds.date between $1 and $2
-     where u.app_role in ('intern', 'postgrad') and u.account_status = 'approved'
-     group by u.id, u.first_name, u.last_name, u.app_role, u.profile_photo_url
-     order by score desc, u.first_name asc`,
-    [startDate, endDate]
-  );
-  return rows;
-}

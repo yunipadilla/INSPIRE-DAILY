@@ -8,3 +8,6 @@ build/
 
 # Base44 migration import manifests — participant identifiers/dates, never committed.
 server/scripts/.migration-logs/
+
+# Generated Summary Agent report PDFs — participant PII, never committed.
+reports/

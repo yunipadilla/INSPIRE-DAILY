@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, GraduationCap, Award, Building2, FolderTree,
+  LayoutDashboard, Users, GraduationCap, School, Award, Building2, FolderTree,
   BarChart3, Target, Trophy, HandHeart, ClipboardList,
   FileText, LineChart, Settings, Menu, X,
 } from 'lucide-react';
@@ -24,6 +24,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/hq/members', label: 'Members', icon: Users },
       { to: '/hq/members?appRole=intern', label: 'Interns', icon: GraduationCap },
+      { to: '/hq/members?appRole=postgrad', label: 'Postgrads', icon: School },
       { to: '/hq/members?appRole=alumni', label: 'Alumni', icon: Award },
       { to: '/hq/members?appRole=staff', label: 'Staff', icon: Building2 },
       { to: '/hq/people/cohorts', label: 'Cohorts / Groups', icon: FolderTree },

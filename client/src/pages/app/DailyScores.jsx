@@ -130,18 +130,25 @@ export default function DailyScores() {
 
   if (alreadyDone) {
     const existing = result?.date === activeDate ? null : activeDay.existing;
+    // Reflection dimensions are trend indicators, not a grade — show the five
+    // 1-10 values individually rather than a combined "X / 50" total.
+    const dimensions = result?.date === activeDate ? sliders : existing;
     return (
       <div className="py-4 space-y-4">
         <Header />
         <ReflectionDateChooser data={data} selected={selected} onSelect={setSelected} />
-        <div className="card p-7 text-center space-y-2.5 gradient-daily-scores">
+        <div className="card p-7 text-center space-y-3 gradient-daily-scores">
           <div className="text-4xl">✅</div>
           <h1 className="text-lg font-bold text-navy">
             Daily Scores submitted for {formatDateLabel(activeDate)}!
           </h1>
-          <p className="text-ink-secondary text-sm">
-            Total score: {result?.date === activeDate ? result.totalScore : existing?.totalScore} / 50
-          </p>
+          <div className="flex flex-wrap justify-center gap-1.5">
+            {QUESTIONS.map((q) => (
+              <span key={q.key} className="text-xs font-semibold text-navy bg-surface-elevated/60 rounded-full px-2.5 py-1">
+                {q.label}: {dimensions?.[q.key]}/10
+              </span>
+            ))}
+          </div>
           {result?.date === activeDate && result?.earnedShield && (
             <p className="text-sm font-semibold text-success">🛡️ You earned a new streak shield!</p>
           )}

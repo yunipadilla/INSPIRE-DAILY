@@ -23,7 +23,6 @@ const ACTION_CARDS = [
 ];
 
 const CELEBRATION_ICON = { streak_milestone: '🔥', shield_earned: '🛡️', goal_completed: '🎯' };
-const MEDAL = ['🥇', '🥈', '🥉'];
 
 function ActionStatusPill({ status }) {
   if (status === 'done') return <span className="text-xs font-bold text-success">✓ Done</span>;
@@ -49,13 +48,11 @@ export default function Home() {
   const location = useLocation();
   const [summary, setSummary] = useState(null);
   const [feed, setFeed] = useState([]);
-  const [leaderboard, setLeaderboard] = useState(null);
   const [showWelcome, setShowWelcome] = useState(Boolean(location.state?.justSignedUp));
 
   useEffect(() => {
     apiFetch('/home/summary').then(setSummary);
     apiFetch('/home/celebration-feed').then((d) => setFeed(d.items));
-    apiFetch('/home/leaderboard-preview').then(setLeaderboard);
   }, []);
 
   const actions = ACTION_CARDS.filter((a) => !a.hideForRoles?.includes(user?.appRole));
@@ -141,25 +138,61 @@ export default function Home() {
         )}
       </section>
 
-      {summary?.weeklyProgress && summary.weeklyProgress.eligibleDays > 0 && (
+      {summary && (
         <section>
-          <SectionHeader icon="📈" iconBg="rgb(var(--color-mint) / 0.3)" title="This Week" />
-          <div className="card p-4 space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold text-navy">
-                {summary.weeklyProgress.submitted} of {summary.weeklyProgress.eligibleDays} days logged
-              </span>
-              <span className="text-ink-secondary">
-                {Math.round((summary.weeklyProgress.submitted / summary.weeklyProgress.eligibleDays) * 100)}%
-              </span>
-            </div>
-            <div className="progress-track">
-              <div
-                className="progress-fill gradient-daily-scores"
-                style={{
-                  width: `${Math.min(100, (summary.weeklyProgress.submitted / summary.weeklyProgress.eligibleDays) * 100)}%`,
-                }}
-              />
+          <SectionHeader icon="📈" iconBg="rgb(var(--color-mint) / 0.3)" title="Your Week" />
+          <div className="card p-4 space-y-4">
+            {summary.weeklyProgress.eligibleDays > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-semibold text-navy">
+                    Daily Scores: {summary.weeklyProgress.submitted} of {summary.weeklyProgress.eligibleDays} days
+                  </span>
+                  <span className="text-ink-secondary">
+                    {Math.round((summary.weeklyProgress.submitted / summary.weeklyProgress.eligibleDays) * 100)}%
+                  </span>
+                </div>
+                <div className="progress-track">
+                  <div
+                    className="progress-fill gradient-daily-scores"
+                    style={{ width: `${Math.min(100, (summary.weeklyProgress.submitted / summary.weeklyProgress.eligibleDays) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {summary.challengeProgress && summary.challengeProgress.eligibleDays > 0 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-semibold text-navy">
+                    Inspire Challenge: {summary.challengeProgress.submitted} of {summary.challengeProgress.eligibleDays} days
+                  </span>
+                  <span className="text-ink-secondary">
+                    {Math.round((summary.challengeProgress.submitted / summary.challengeProgress.eligibleDays) * 100)}%
+                  </span>
+                </div>
+                <div className="progress-track">
+                  <div
+                    className="progress-fill gradient-inspire-challenge"
+                    style={{ width: `${Math.min(100, (summary.challengeProgress.submitted / summary.challengeProgress.eligibleDays) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/8">
+              <div className="text-center">
+                <div className="text-lg font-extrabold text-navy">🔥 {summary.stats.streakCount}</div>
+                <div className="text-[10px] uppercase text-ink-muted">Streak</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-extrabold text-navy">{summary.goalsWorkedOnThisWeek}</div>
+                <div className="text-[10px] uppercase text-ink-muted">Goals worked on</div>
+              </div>
+              <div className="text-center flex flex-col items-center justify-center gap-0.5">
+                <ActionStatusPill status={summary.todaysActions.internshipTasks} />
+                <div className="text-[10px] uppercase text-ink-muted">Tasks</div>
+              </div>
             </div>
           </div>
         </section>
@@ -177,38 +210,6 @@ export default function Home() {
               <span>{item.message}</span>
             </div>
           ))}
-        </div>
-      </section>
-
-      <section className="opacity-90">
-        <SectionHeader icon="🏆" iconBg="rgb(var(--color-primary) / 0.16)" title="Leaderboard" />
-        {leaderboard?.guestNote && <p className="text-xs text-ink-secondary mb-2">{leaderboard.guestNote}</p>}
-        <div className="card divide-y divide-border/6 overflow-hidden">
-          {leaderboard?.entries.map((e, i) => (
-            <div
-              key={e.id}
-              className={`flex items-center gap-3 p-3 ${e.isCurrentUser ? 'bg-primary/10' : ''}`}
-            >
-              <span className="w-6 text-base text-center">{MEDAL[i] || <span className="text-sm font-bold text-ink-secondary">{e.rank}</span>}</span>
-              <div className="w-9 h-9 rounded-full gradient-rainbow flex items-center justify-center text-xs font-bold text-onbrand overflow-hidden flex-shrink-0">
-                {e.profilePhotoUrl ? (
-                  <img src={e.profilePhotoUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  `${e.firstName?.[0] || ''}${e.lastInitial}`
-                )}
-              </div>
-              <span className="flex-1 text-sm font-medium text-navy">
-                {e.firstName} {e.lastInitial}.
-              </span>
-              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-surface-soft text-ink-secondary">
-                {e.appRole}
-              </span>
-              <span className="text-sm font-extrabold text-navy">{e.score}</span>
-            </div>
-          ))}
-          {leaderboard && leaderboard.entries.length === 0 && (
-            <p className="p-4 text-sm text-ink-secondary">No scores yet this month.</p>
-          )}
         </div>
       </section>
     </div>
