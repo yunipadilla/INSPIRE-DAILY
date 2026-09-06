@@ -34,16 +34,34 @@ export async function insertSummerEntry(userId, date, values, totalPoints) {
   return rows[0];
 }
 
+/**
+ * The current Challenge period's ranked leaderboard — the one place real
+ * standings (and, per the printed prize structure, real prizes) are
+ * decided, so this is the query where an approved Base44 checkpoint (see
+ * repositories/base44Checkpoints.js) matters most. For a user with no
+ * checkpoint — the overwhelming majority — `bc.*` is all NULL and this
+ * reduces to exactly the previous unconditional period sum, zero behavior
+ * change. For a checkpointed user, entries dated on/before their
+ * checkpoint_date are excluded from the raw sum (they're already
+ * represented by challenge_points_checkpoint) and only genuinely new
+ * post-checkpoint entries are added on top — preventing double-counting by
+ * construction, never by guessing which specific rows "already count."
+ */
 export async function monthlySummerLeaderboard(startDate, endDate) {
+  const periodKey = startDate.slice(0, 7);
   const { rows } = await query(
     `select u.id, u.first_name, u.last_name, u.app_role, u.profile_photo_url,
-            coalesce(sum(se.total_points), 0)::numeric as score
+            coalesce(bc.challenge_points_checkpoint, 0) + coalesce((
+              select sum(se2.total_points) from summer_entries se2
+               where se2.user_id = u.id
+                 and se2.date between $1 and $2
+                 and se2.date > coalesce(bc.checkpoint_date, '1899-12-31'::date)
+            ), 0)::numeric as score
      from users u
-     left join summer_entries se on se.user_id = u.id and se.date between $1 and $2
+     left join base44_checkpoints bc on bc.user_id = u.id and bc.challenge_period = $3
      where u.app_role in ('intern','postgrad') and u.account_status = 'approved'
-     group by u.id, u.first_name, u.last_name, u.app_role, u.profile_photo_url
      order by score desc, u.first_name asc`,
-    [startDate, endDate]
+    [startDate, endDate, periodKey]
   );
   return rows;
 }

@@ -202,7 +202,7 @@ export default function MemberProfile() {
     );
   }
 
-  const { user: member, dailyScores, goals, challenge, challengeAllTime, challengeHistory, tasks, badges, volunteerHours, legacyStatus, timeline } = data;
+  const { user: member, dailyScores, goals, challenge, challengeAllTime, challengeHistory, tasks, badges, volunteerHours, legacyStatus, timeline, base44Checkpoint } = data;
   const activeGoals = goals.filter((g) => !g.completed);
   const completedGoals = goals.filter((g) => g.completed);
   const tasksCompleted = tasks.filter((t) => t.status === 'completed');
@@ -416,6 +416,15 @@ export default function MemberProfile() {
                 rebuilt totals combined — never shown as the current score. */}
             <div className="card p-3 text-center"><div className="text-lg font-extrabold text-navy">{challengeAllTime.totalPoints.toFixed(1)}</div><div className="text-[10px] uppercase text-ink-muted">All-time pts</div></div>
           </div>
+          {base44Checkpoint && (
+            <div className="card p-3 bg-surface-soft space-y-0.5">
+              <p className="text-[10px] uppercase font-bold text-ink-muted">Base44 transition checkpoint applied</p>
+              <p className="text-xs text-ink-secondary">
+                As of {base44Checkpoint.checkpointDate}: streak {base44Checkpoint.streakCheckpoint}, {base44Checkpoint.challengePointsCheckpoint} pts / {base44Checkpoint.challengeDaysCheckpoint} days for {base44Checkpoint.challengePeriod}.
+                Staff-approved migration baseline — no per-day Base44 submission records exist for this period; current/all-time figures above are this checkpoint plus verified rebuilt-platform activity since.
+              </p>
+            </div>
+          )}
           {challengeHistory.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div className="card p-2 text-center"><div className="font-bold text-navy">{pct(catAvg('hydration'))}</div><div className="text-ink-muted">Hydration</div></div>

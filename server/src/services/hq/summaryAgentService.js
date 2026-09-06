@@ -24,6 +24,7 @@ import { ptDateString, addDays, currentWeekBoundsPT } from '../../config/pacific
 import { SUMMER_CHALLENGE_LAUNCH_DATE } from '../../config/constants.js';
 import { eligibleDayCount, previousWeekBounds, previousMonthBounds } from '../../lib/reportingWindow.js';
 import { resolveMonthBounds } from './challengeService.js';
+import { getCheckpointForUser } from '../../repositories/base44Checkpoints.js';
 
 const DIMENSIONS = [
   { key: 'best_self', label: 'Best Self' },
@@ -88,13 +89,29 @@ async function fetchDailyScores(userId, start, end) {
   return rows;
 }
 
-async function fetchChallengeStats(userId, start, end) {
+/**
+ * A Base44 checkpoint is a whole-month cumulative figure — it has no daily
+ * breakdown to attribute to a partial week. Applying it here would mean
+ * guessing which days of a 7-day window it "belongs to", which is exactly
+ * the kind of fabrication this whole feature must never do. So the
+ * checkpoint is only ever applied when `[start, end]` is the FULL calendar
+ * month it was recorded for (i.e. monthly reports) — a weekly report's
+ * Challenge stats are always real data only, checkpoint or not.
+ */
+async function fetchChallengeStats(userId, start, end, checkpoint = null) {
+  const periodKey = start.slice(0, 7);
+  const isFullMonthMatch = Boolean(
+    checkpoint && checkpoint.challenge_period === periodKey && start === resolveMonthBounds(periodKey).start && end === resolveMonthBounds(periodKey).end
+  );
+  const cpDateBound = isFullMonthMatch ? checkpoint.checkpoint_date : '1899-12-31';
   const { rows } = await query(
     `select count(distinct date)::int as days_logged, coalesce(sum(total_points), 0)::numeric as points
-       from summer_entries where user_id = $1 and date between $2 and $3`,
-    [userId, start, end]
+       from summer_entries where user_id = $1 and date between $2 and $3 and date > $4::date`,
+    [userId, start, end, cpDateBound]
   );
-  return { daysLogged: rows[0].days_logged, points: Number(rows[0].points) };
+  const daysLogged = rows[0].days_logged + (isFullMonthMatch ? checkpoint.challenge_days_checkpoint : 0);
+  const points = Number(rows[0].points) + (isFullMonthMatch ? Number(checkpoint.challenge_points_checkpoint) : 0);
+  return { daysLogged, points, checkpointApplied: isFullMonthMatch };
 }
 
 async function fetchGoals(userId, periodStart, periodEnd) {
@@ -216,11 +233,15 @@ async function buildSummaryForPeriod(userId, { start, end, priorStart, priorEnd,
   // "eligible but missed." ISO 'YYYY-MM-DD' strings compare correctly with
   // plain string comparison; Math.max() would coerce them to NaN.
   const challengeWindowStart = start < SUMMER_CHALLENGE_LAUNCH_DATE ? SUMMER_CHALLENGE_LAUNCH_DATE : start;
+  // fetchChallengeStats reads the raw base44_checkpoints row shape directly
+  // (challenge_period / checkpoint_date / challenge_days_checkpoint /
+  // challenge_points_checkpoint) — no remapping needed.
+  const checkpoint = await getCheckpointForUser(userId);
 
   const [currentRows, priorRows, challenge, goals, tasksCompleted, badges] = await Promise.all([
     fetchDailyScores(userId, start, end),
     fetchDailyScores(userId, priorStart, priorEnd),
-    challengeWindowStart > end ? Promise.resolve({ daysLogged: 0, points: 0 }) : fetchChallengeStats(userId, challengeWindowStart, end),
+    challengeWindowStart > end ? Promise.resolve({ daysLogged: 0, points: 0 }) : fetchChallengeStats(userId, challengeWindowStart, end, checkpoint),
     fetchGoals(userId, start, end),
     fetchTasksCompleted(userId, start, end),
     fetchBadgesEarned(userId, start, end),

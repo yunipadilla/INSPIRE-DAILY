@@ -7,6 +7,7 @@ import { findByUserAndDate as findDailyScore } from '../repositories/dailyScores
 import { resolveMonthBounds } from '../services/hq/challengeService.js';
 import { eligibleDayCount } from '../lib/reportingWindow.js';
 import { listActiveCelebrations } from '../repositories/celebrationFeed.js';
+import { getCheckpointForUser } from '../repositories/base44Checkpoints.js';
 
 const router = Router();
 
@@ -16,6 +17,10 @@ router.get('/summary', requireAuth, async (req, res) => {
   const { start: weekStart } = currentWeekBoundsPT();
   const { start: challengeStart, end: challengeEnd } = resolveMonthBounds();
   const challengeWindowEnd = today < challengeEnd ? today : challengeEnd;
+  const periodKey = challengeStart.slice(0, 7);
+  const checkpointRow = await getCheckpointForUser(req.user.id);
+  const checkpointAppliesHere = checkpointRow && checkpointRow.challenge_period === periodKey;
+  const cpDateBound = checkpointAppliesHere ? checkpointRow.checkpoint_date : '1899-12-31';
 
   const [
     badgeCountRes,
@@ -39,8 +44,8 @@ router.get('/summary', requireAuth, async (req, res) => {
       [req.user.id, weekStart, today]
     ),
     query(
-      'select count(distinct date)::int as count from summer_entries where user_id = $1 and date >= $2 and date <= $3',
-      [req.user.id, challengeStart, challengeWindowEnd]
+      'select count(distinct date)::int as count from summer_entries where user_id = $1 and date >= $2 and date <= $3 and date > $4::date',
+      [req.user.id, challengeStart, challengeWindowEnd, cpDateBound]
     ),
   ]);
 
@@ -64,7 +69,7 @@ router.get('/summary', requireAuth, async (req, res) => {
     // resolveMonthBounds() the HQ Challenge page and leaderboard use.
     challengeProgress: challengeLaunched
       ? {
-          submitted: challengeSubmissionsRes.rows[0].count,
+          submitted: challengeSubmissionsRes.rows[0].count + (checkpointAppliesHere ? checkpointRow.challenge_days_checkpoint : 0),
           eligibleDays: eligibleDayCount(challengeStart, challengeWindowEnd),
         }
       : null,

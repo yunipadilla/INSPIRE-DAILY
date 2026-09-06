@@ -11,6 +11,7 @@ import {
 import { applySubmission, STREAK_CONSTANTS } from '../lib/streakEngine.js';
 import { updateStreakFields } from '../repositories/users.js';
 import { postCelebration } from '../repositories/celebrationFeed.js';
+import { getCheckpointForUser } from '../repositories/base44Checkpoints.js';
 
 const router = Router();
 
@@ -107,11 +108,16 @@ router.post('/', requireAuth, async (req, res) => {
   const record = await insertDailyScore(req.user.id, targetDate, parsed.data);
 
   const priorDates = await listDatesForUser(req.user.id);
+  const checkpointRow = await getCheckpointForUser(req.user.id);
+  const checkpoint = checkpointRow
+    ? { checkpointDate: checkpointRow.checkpoint_date, streakCheckpoint: checkpointRow.streak_checkpoint }
+    : null;
   const { streakCount, streakShields, earnedShield } = applySubmission({
     streakCount: req.user.streak_count,
     streakShields: req.user.streak_shields,
     submittedDates: priorDates,
     dateJustSubmitted: targetDate,
+    checkpoint,
   });
 
   await updateStreakFields(req.user.id, {

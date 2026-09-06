@@ -10,6 +10,7 @@ import { query } from '../db.js';
 import { reconcileUserStreak } from '../lib/streakEngine.js';
 import { updateStreakFields } from '../repositories/users.js';
 import { listDatesForUser } from '../repositories/dailyScores.js';
+import { getAllCheckpoints } from '../repositories/base44Checkpoints.js';
 import { PACIFIC_TIME_ZONE } from '../config/pacificTime.js';
 import { scheduleSafeCron } from '../lib/safeCron.js';
 
@@ -17,6 +18,7 @@ export async function runDailyScoresAgent(now = new Date()) {
   const { rows: users } = await query(
     "select id, streak_count, streak_shields from users where account_status = 'approved'"
   );
+  const checkpointsByUser = await getAllCheckpoints();
 
   let synced = 0;
   let shielded = 0;
@@ -26,7 +28,11 @@ export async function runDailyScoresAgent(now = new Date()) {
   for (const user of users) {
     try {
       const submittedDates = await listDatesForUser(user.id);
-      const outcome = reconcileUserStreak({ user, submittedDates, now });
+      const checkpointRow = checkpointsByUser.get(user.id);
+      const checkpoint = checkpointRow
+        ? { checkpointDate: checkpointRow.checkpoint_date, streakCheckpoint: checkpointRow.streak_checkpoint }
+        : null;
+      const outcome = reconcileUserStreak({ user, submittedDates, now, checkpoint });
 
       if (outcome.action === 'sync') {
         await updateStreakFields(user.id, { streak_count: outcome.streakCount });

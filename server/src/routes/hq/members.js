@@ -135,6 +135,11 @@ router.get('/:id', async (req, res) => {
       ? { totalPoints: Number(profile.challengeAllTime.total_points), daysLogged: profile.challengeAllTime.days_logged }
       : { totalPoints: 0, daysLogged: 0 },
     challengePeriod: profile.challengePeriod,
+    // Auditable, clearly-separate provenance for any approved Base44
+    // transition checkpoint applied to this participant's current
+    // streak/Challenge figures above — never itself presented as a raw
+    // submission (see repositories/base44Checkpoints.js).
+    base44Checkpoint: profile.base44Checkpoint,
     challengeHistory: profile.challengeHistory.map((c) => ({
       date: c.date,
       totalPoints: Number(c.total_points),

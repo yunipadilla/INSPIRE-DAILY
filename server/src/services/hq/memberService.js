@@ -5,6 +5,7 @@ import { ptDateString, addDays } from '../../config/pacificTime.js';
 // leaderboard. Reused here so "current Challenge points" means the same
 // thing everywhere in HQ, not a second parallel definition of "current."
 import { resolveMonthBounds } from './challengeService.js';
+import { getCheckpointForUser } from '../../repositories/base44Checkpoints.js';
 
 // Whitelisted sort keys mapped to real column expressions — never interpolate
 // a client-supplied string directly into ORDER BY.
@@ -73,12 +74,17 @@ export async function listMembers({ search, appRole, accountStatus, activityStat
   // "Challenge pts" here is a roster at-a-glance column, unlabeled — per the
   // current-period display rule it must mean the active Challenge period,
   // never an all-time sum (that used to silently include every historical
-  // month, which is exactly the "~219 points on day 3" bug).
+  // month, which is exactly the "~219 points on day 3" bug). Also folds in
+  // an approved Base44 checkpoint when one applies to this exact period —
+  // pre-checkpoint entries are excluded from the raw sum so the checkpoint
+  // is never double-counted (see repositories/base44Checkpoints.js).
   const { start: challengeStart, end: challengeEnd } = resolveMonthBounds();
+  const challengePeriodKey = challengeStart.slice(0, 7);
   const challengeStartIndex = i;
   const challengeEndIndex = i + 1;
-  const limitParamIndex = i + 2;
-  const offsetParamIndex = i + 3;
+  const challengePeriodIndex = i + 2;
+  const limitParamIndex = i + 3;
+  const offsetParamIndex = i + 4;
 
   const [rowsRes, countRes] = await Promise.all([
     query(
@@ -87,13 +93,18 @@ export async function listMembers({ search, appRole, accountStatus, activityStat
               (select max(ds.date) from daily_scores ds where ds.user_id = u.id) as last_activity,
               (select count(*) from goals where user_id = u.id and completed = false)::int as active_goals,
               (select count(*) from badges where user_id = u.id)::int as badge_count,
-              coalesce((select sum(total_points) from summer_entries
-                         where user_id = u.id and date between $${challengeStartIndex} and $${challengeEndIndex}), 0)::numeric as challenge_points
+              (coalesce(bc.challenge_points_checkpoint, 0) + coalesce((
+                 select sum(se.total_points) from summer_entries se
+                  where se.user_id = u.id
+                    and se.date between $${challengeStartIndex} and $${challengeEndIndex}
+                    and se.date > coalesce(bc.checkpoint_date, '1899-12-31'::date)
+               ), 0))::numeric as challenge_points
          from users u
+         left join base44_checkpoints bc on bc.user_id = u.id and bc.challenge_period = $${challengePeriodIndex}
         where ${whereClause}
         order by ${sortColumn} ${sortDir} nulls last, u.id
         limit $${limitParamIndex} offset $${offsetParamIndex}`,
-      [...params, challengeStart, challengeEnd, safePageSize, offset]
+      [...params, challengeStart, challengeEnd, challengePeriodKey, safePageSize, offset]
     ),
     query(`select count(*)::int as count from users u where ${whereClause}`, params),
   ]);
@@ -125,10 +136,18 @@ export async function getMemberProfile(id) {
   // Current Challenge period — same shared resolver the HQ Challenge page's
   // monthly leaderboard uses. `challenge` below means THIS period, never an
   // all-time sum; `challengeAllTime` is the separate, explicitly-labeled
-  // all-time figure (see MemberProfile's "All-time pts" card).
+  // all-time figure (see MemberProfile's "All-time pts" card). Both fold in
+  // an approved Base44 checkpoint when one applies (see
+  // repositories/base44Checkpoints.js) — computed in JS below rather than a
+  // single SQL query, since it's a single known user and the checkpoint/
+  // no-checkpoint branches are much easier to verify correct this way.
   const { start: challengeStart, end: challengeEnd } = resolveMonthBounds();
+  const periodKey = challengeStart.slice(0, 7);
+  const checkpointRow = await getCheckpointForUser(id);
+  const checkpointAppliesToCurrentPeriod = checkpointRow && checkpointRow.challenge_period === periodKey;
+  const cpDateBound = checkpointAppliesToCurrentPeriod ? checkpointRow.checkpoint_date : '1899-12-31';
 
-  const [dailyScoresRes, goalsRes, challengeRes, challengeAllTimeRes, challengeHistoryRes, tasksRes, badgesRes, volunteerRes, legacyFactsRes, timelineRes] = await Promise.all([
+  const [dailyScoresRes, goalsRes, currentPeriodRealRes, outsideCheckpointPeriodRes, challengeHistoryRes, tasksRes, badgesRes, volunteerRes, legacyFactsRes, timelineRes] = await Promise.all([
     query(
       `select date, total_score, best_self, ceo_mindset, grit, happiness, sleep, volunteer_hours,
               earned_way, challenges, goals_worked_on
@@ -140,15 +159,23 @@ export async function getMemberProfile(id) {
          from goals where user_id = $1 order by created_at desc`,
       [id]
     ),
+    // Real entries in the current period, excluding anything on/before the
+    // checkpoint date (already represented by the checkpoint value itself).
     query(
       `select coalesce(sum(total_points), 0)::numeric as total_points, count(*)::int as days_logged
-         from summer_entries where user_id = $1 and date between $2 and $3`,
-      [id, challengeStart, challengeEnd]
+         from summer_entries where user_id = $1 and date between $2 and $3 and date > $4::date`,
+      [id, challengeStart, challengeEnd, cpDateBound]
     ),
+    // All real entries OUTSIDE the checkpointed month (June/July/August,
+    // unaffected) — only meaningful when a checkpoint exists; harmless to
+    // compute unconditionally otherwise (checkpointRow is null -> unused).
     query(
-      `select coalesce(sum(total_points), 0)::numeric as total_points, count(*)::int as days_logged
-         from summer_entries where user_id = $1`,
-      [id]
+      checkpointRow
+        ? `select coalesce(sum(total_points), 0)::numeric as total_points, count(*)::int as days_logged
+             from summer_entries where user_id = $1 and to_char(date, 'YYYY-MM') <> $2`
+        : `select coalesce(sum(total_points), 0)::numeric as total_points, count(*)::int as days_logged
+             from summer_entries where user_id = $1`,
+      checkpointRow ? [id, checkpointRow.challenge_period] : [id]
     ),
     query(
       `select date, total_points, submitted_at, sleep_bed_before_10, sleep_8h, hydration, exercise,
@@ -225,13 +252,38 @@ export async function getMemberProfile(id) {
     logs: logsRes.rows.filter((l) => l.goal_id === g.id),
   }));
 
+  const currentPeriodReal = {
+    points: Number(currentPeriodRealRes.rows[0].total_points),
+    days: currentPeriodRealRes.rows[0].days_logged,
+  };
+  const challenge = checkpointAppliesToCurrentPeriod
+    ? {
+        total_points: Number(checkpointRow.challenge_points_checkpoint) + currentPeriodReal.points,
+        days_logged: checkpointRow.challenge_days_checkpoint + currentPeriodReal.days,
+      }
+    : { total_points: currentPeriodReal.points, days_logged: currentPeriodReal.days };
+  const challengeAllTime = {
+    total_points: Number(outsideCheckpointPeriodRes.rows[0].total_points) + (checkpointRow ? challenge.total_points : 0),
+    days_logged: outsideCheckpointPeriodRes.rows[0].days_logged + (checkpointRow ? challenge.days_logged : 0),
+  };
+
   return {
     user,
     dailyScores: dailyScoresRes.rows,
     goals,
-    challenge: challengeRes.rows[0],
-    challengeAllTime: challengeAllTimeRes.rows[0],
+    challenge,
+    challengeAllTime,
     challengePeriod: { start: challengeStart, end: challengeEnd },
+    base44Checkpoint: checkpointRow
+      ? {
+          checkpointDate: checkpointRow.checkpoint_date,
+          streakCheckpoint: checkpointRow.streak_checkpoint,
+          challengePeriod: checkpointRow.challenge_period,
+          challengePointsCheckpoint: Number(checkpointRow.challenge_points_checkpoint),
+          challengeDaysCheckpoint: checkpointRow.challenge_days_checkpoint,
+          migratedAt: checkpointRow.migrated_at,
+        }
+      : null,
     challengeHistory: challengeHistoryRes.rows,
     tasks: tasksRes.rows,
     badges: badgesRes.rows,

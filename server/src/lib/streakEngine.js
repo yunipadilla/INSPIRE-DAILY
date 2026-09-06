@@ -19,8 +19,18 @@ const RECOVERY_WINDOW_HOURS = 24;
  * @param {string[]} submittedDates - 'YYYY-MM-DD' dates the user has submitted, any order.
  * @param {string} todayStr - 'YYYY-MM-DD', the current date in Pacific Time.
  * @param {Date} now - current instant (for the before-noon check); defaults to real now.
+ * @param {{checkpointDate: string, streakCheckpoint: number}|null} checkpoint -
+ *   an approved Base44 transition baseline (see repositories/base44Checkpoints.js).
+ *   Absent/null for every user without one — behavior is then identical to
+ *   before this parameter existed. When present, the streak is computed as
+ *   checkpoint forward-continuity (see calculateStreakFromCheckpoint) instead
+ *   of the backward walk below.
  */
-export function calculateStreak(submittedDates, todayStr, now = new Date()) {
+export function calculateStreak(submittedDates, todayStr, now = new Date(), checkpoint = null) {
+  if (checkpoint) {
+    return calculateStreakFromCheckpoint(checkpoint, submittedDates, todayStr, now);
+  }
+
   const submitted = new Set(submittedDates);
   const yesterdayStr = addDays(todayStr, -1);
   const beforeNoon = isBeforeNoonPT(now);
@@ -55,8 +65,54 @@ export function calculateStreak(submittedDates, todayStr, now = new Date()) {
   return streak;
 }
 
-/** Call right after a Daily Scores submission to update streak_count / shields. */
-export function applySubmission({ streakCount, streakShields, submittedDates, dateJustSubmitted, now = new Date() }) {
+/**
+ * Checkpoint-aware streak: walks FORWARD from the day after checkpointDate,
+ * mirroring the same Sunday-skip and still-open-window rules as the
+ * backward walk above, adding one for each real post-checkpoint submission.
+ * The moment a required non-Sunday day is missed outside its grace window,
+ * the checkpoint is forfeited for good — this call falls back to the plain
+ * backward-walk calculateStreak() over the real submittedDates only, i.e.
+ * "reset according to canonical streak rules" exactly as specified. A
+ * checkpoint can only ever ADD verified continuity on top of real activity;
+ * it can never mask a real, subsequent gap.
+ */
+function calculateStreakFromCheckpoint(checkpoint, submittedDates, todayStr, now) {
+  const submitted = new Set(submittedDates);
+  const yesterdayStr = addDays(todayStr, -1);
+  const beforeNoon = isBeforeNoonPT(now);
+
+  let current = addDays(checkpoint.checkpointDate, 1);
+  let addOn = 0;
+
+  while (current <= todayStr) {
+    const dow = ptDayOfWeek(current);
+    if (dow === 0) {
+      current = addDays(current, 1);
+      continue;
+    }
+    if (submitted.has(current)) {
+      addOn += 1;
+    } else if (current === todayStr) {
+      // Today's own window still open — don't break the chain yet.
+    } else if (current === yesterdayStr && beforeNoon) {
+      // Yesterday's window still open (closes at today's noon).
+    } else {
+      // Checkpoint continuity broken by a real, unsubmitted eligible day —
+      // forfeit the checkpoint permanently, canonical rules take over.
+      return calculateStreak(submittedDates, todayStr, now, null);
+    }
+    current = addDays(current, 1);
+  }
+
+  return checkpoint.streakCheckpoint + addOn;
+}
+
+/** Call right after a Daily Scores submission to update streak_count / shields.
+ * `checkpoint` (see repositories/base44Checkpoints.js) is optional and
+ * absent for the vast majority of users — passing it through here is what
+ * lets a checkpointed user's post-submission streak correctly include their
+ * approved Base44 baseline instead of only counting rebuilt-platform rows. */
+export function applySubmission({ streakCount, streakShields, submittedDates, dateJustSubmitted, now = new Date(), checkpoint = null }) {
   const todayStr = ptDateString(now);
 
   if (ptDayOfWeek(dateJustSubmitted) === 0) {
@@ -67,7 +123,7 @@ export function applySubmission({ streakCount, streakShields, submittedDates, da
   const dates = submittedDates.includes(dateJustSubmitted)
     ? submittedDates
     : [...submittedDates, dateJustSubmitted];
-  const newStreak = calculateStreak(dates, todayStr, now);
+  const newStreak = calculateStreak(dates, todayStr, now, checkpoint);
 
   let newShields = streakShields;
   let earnedShield = false;
@@ -86,14 +142,14 @@ export function applySubmission({ streakCount, streakShields, submittedDates, da
  * the following day" deadline actually closes; running this at midnight
  * would cut every user's grace period in half.
  */
-export function reconcileUserStreak({ user, submittedDates, now = new Date() }) {
+export function reconcileUserStreak({ user, submittedDates, now = new Date(), checkpoint = null }) {
   const todayStr = ptDateString(now);
   const dow = ptDayOfWeek(todayStr);
 
   // Sunday: never runs. Monday: never runs (Monday's own deadline is Tuesday
   // noon, so there's nothing to enforce yet).
   if (dow === 0 || dow === 1) {
-    const correct = calculateStreak(submittedDates, todayStr, now);
+    const correct = calculateStreak(submittedDates, todayStr, now, checkpoint);
     if (correct !== user.streak_count) {
       return { action: 'sync', streakCount: correct };
     }
@@ -103,7 +159,12 @@ export function reconcileUserStreak({ user, submittedDates, now = new Date() }) 
   // Tuesday must reach back to Monday (hopping over the always-skipped Sunday
   // check-day); Wed-Sat check yesterday.
   const requiredDate = dow === 2 ? addDays(todayStr, -2) : addDays(todayStr, -1);
-  const submittedRequired = submittedDates.includes(requiredDate);
+  // A required date on or before an approved checkpoint is already certified
+  // by the checkpoint itself — it must never be treated as "missed" just
+  // because no literal rebuilt-platform row exists for that date.
+  const submittedRequired = checkpoint && requiredDate <= checkpoint.checkpointDate
+    ? true
+    : submittedDates.includes(requiredDate);
   const stored = user.streak_count || 0;
 
   if (!submittedRequired && stored > 0) {
@@ -124,7 +185,7 @@ export function reconcileUserStreak({ user, submittedDates, now = new Date() }) 
     };
   }
 
-  const correct = calculateStreak(submittedDates, todayStr, now);
+  const correct = calculateStreak(submittedDates, todayStr, now, checkpoint);
   if (correct !== stored) {
     return { action: 'sync', streakCount: correct };
   }
