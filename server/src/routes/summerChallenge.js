@@ -1,12 +1,14 @@
 import { Router } from 'express';
-import { ptDayOfWeek, currentMonthBoundsPT } from '../config/pacificTime.js';
+import { currentMonthBoundsPT } from '../config/pacificTime.js';
 import { requireAuth } from '../middleware/auth.js';
 import { SUMMER_CHALLENGE_LAUNCH_DATE } from '../config/constants.js';
 import { calculateSummerPoints } from '../lib/summerChallenge.js';
 import { getSubmissionWindow, isEligibleSubmissionDate, eligibilityMessageFor } from '../lib/submissionWindow.js';
 import { findByUserAndDate, insertSummerEntry, monthlySummerLeaderboard } from '../repositories/summerEntries.js';
+import { findAcknowledgement, acknowledgeRestDay } from '../repositories/restDayAcknowledgements.js';
 import { query } from '../db.js';
 
+const REST_DAY_SOURCE = 'inspire_challenge';
 const router = Router();
 router.use(requireAuth);
 
@@ -42,7 +44,7 @@ router.get('/today', async (req, res) => {
     [req.user.id, monthStart, monthEnd]
   );
 
-  if (w.todayIsSunday || !isLaunched) {
+  if (!isLaunched) {
     return res.json({
       window: w,
       isLaunched,
@@ -53,36 +55,57 @@ router.get('/today', async (req, res) => {
     });
   }
 
-  const [todayExisting, yesterdayExisting] = await Promise.all([
-    findByUserAndDate(req.user.id, w.today),
+  // 2026-09-06 hotfix: today being Sunday no longer short-circuits this
+  // response before checking whether Saturday's window is still open — see
+  // routes/dailyScores.js's GET /today for the full explanation (same bug,
+  // same fix, same shared submissionWindow.js source of truth).
+  const [todayExisting, yesterdayExisting, yesterdayAck] = await Promise.all([
+    w.todayIsSunday ? Promise.resolve(null) : findByUserAndDate(req.user.id, w.today),
     w.yesterdayEligible ? findByUserAndDate(req.user.id, w.yesterday) : Promise.resolve(null),
+    w.yesterdayIsSunday ? findAcknowledgement(req.user.id, w.yesterday, REST_DAY_SOURCE) : Promise.resolve(null),
   ]);
 
   res.json({
     window: w,
     isLaunched,
     launchDate: SUMMER_CHALLENGE_LAUNCH_DATE,
-    today: {
-      date: w.today,
-      isSunday: false,
-      alreadySubmitted: Boolean(todayExisting),
-      existing: todayExisting ? toClientEntry(todayExisting) : null,
-    },
-    yesterday: w.yesterdayEligible
-      ? {
-          date: w.yesterday,
-          eligible: true,
-          alreadySubmitted: Boolean(yesterdayExisting),
-          existing: yesterdayExisting ? toClientEntry(yesterdayExisting) : null,
-        }
+    today: w.todayIsSunday
+      ? { date: w.today, isSunday: true, alreadySubmitted: false, existing: null }
       : {
-          date: w.yesterday,
-          eligible: false,
-          isSunday: ptDayOfWeek(w.yesterday) === 0,
-          message: eligibilityMessageFor(w.yesterday),
+          date: w.today,
+          isSunday: false,
+          alreadySubmitted: Boolean(todayExisting),
+          existing: todayExisting ? toClientEntry(todayExisting) : null,
         },
+    yesterday: w.yesterdayIsSunday
+      ? { date: w.yesterday, isSunday: true, acknowledged: Boolean(yesterdayAck) }
+      : w.yesterdayEligible
+        ? {
+            date: w.yesterday,
+            eligible: true,
+            alreadySubmitted: Boolean(yesterdayExisting),
+            existing: yesterdayExisting ? toClientEntry(yesterdayExisting) : null,
+          }
+        : {
+            date: w.yesterday,
+            eligible: false,
+            isSunday: false,
+            message: eligibilityMessageFor(w.yesterday),
+          },
     volunteerHoursThisMonth: volunteerHoursRes.rows[0].hours,
   });
+});
+
+/** Confirms "yesterday was a rest day" for Inspire Challenge — same narrow
+ * acknowledgement mechanism as Daily Scores, own `source` so each surfaces
+ * its own confirmation independently. Never writes a summer_entries row. */
+router.post('/rest-day-ack', async (req, res) => {
+  const w = getSubmissionWindow();
+  if (!w.yesterdayIsSunday || req.body?.date !== w.yesterday) {
+    return res.status(400).json({ error: 'There is no rest day pending acknowledgement right now.' });
+  }
+  const record = await acknowledgeRestDay(req.user.id, w.yesterday, REST_DAY_SOURCE);
+  res.status(201).json({ date: record.rest_date, acknowledgedAt: record.acknowledged_at });
 });
 
 router.get('/leaderboard', async (req, res) => {

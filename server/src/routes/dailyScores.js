@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { dailyScoreSchema } from '../lib/validators.js';
-import { ptDayOfWeek } from '../config/pacificTime.js';
 import { getSubmissionWindow, isEligibleSubmissionDate, eligibilityMessageFor } from '../lib/submissionWindow.js';
 import {
   findByUserAndDate,
@@ -12,6 +11,9 @@ import { applySubmission, STREAK_CONSTANTS } from '../lib/streakEngine.js';
 import { updateStreakFields } from '../repositories/users.js';
 import { postCelebration } from '../repositories/celebrationFeed.js';
 import { getCheckpointForUser } from '../repositories/base44Checkpoints.js';
+import { findAcknowledgement, acknowledgeRestDay } from '../repositories/restDayAcknowledgements.js';
+
+const REST_DAY_SOURCE = 'daily_scores';
 
 const router = Router();
 
@@ -39,49 +41,66 @@ function dayStatus(existing) {
  * client only ever displays what this endpoint says. Both today's and
  * yesterday's (if in-window) existing-submission state are returned in one
  * call so the UI can switch between them without a second round trip.
+ *
+ * 2026-09-06 hotfix: today being Sunday no longer short-circuits this whole
+ * response — Saturday's own catch-up window (w.yesterdayEligible) must stay
+ * available through Sunday noon regardless of what "today" is. `today` is
+ * still reported as isSunday so the client knows not to require it, but
+ * `yesterday` is now always computed from the real window state.
  */
 router.get('/today', requireAuth, async (req, res) => {
   const w = getSubmissionWindow();
 
-  if (w.todayIsSunday) {
-    return res.json({
-      window: w,
-      today: { date: w.today, isSunday: true, alreadySubmitted: false, existing: null },
-      yesterday: null,
-      streakCount: req.user.streak_count,
-      streakShields: req.user.streak_shields,
-    });
-  }
-
-  const [todayExisting, yesterdayExisting] = await Promise.all([
-    findByUserAndDate(req.user.id, w.today),
+  const [todayExisting, yesterdayExisting, yesterdayAck] = await Promise.all([
+    w.todayIsSunday ? Promise.resolve(null) : findByUserAndDate(req.user.id, w.today),
     w.yesterdayEligible ? findByUserAndDate(req.user.id, w.yesterday) : Promise.resolve(null),
+    w.yesterdayIsSunday ? findAcknowledgement(req.user.id, w.yesterday, REST_DAY_SOURCE) : Promise.resolve(null),
   ]);
 
   res.json({
     window: w,
-    today: {
-      date: w.today,
-      isSunday: false,
-      alreadySubmitted: Boolean(todayExisting),
-      existing: dayStatus(todayExisting),
-    },
-    yesterday: w.yesterdayEligible
-      ? {
-          date: w.yesterday,
-          eligible: true,
-          alreadySubmitted: Boolean(yesterdayExisting),
-          existing: dayStatus(yesterdayExisting),
-        }
+    today: w.todayIsSunday
+      ? { date: w.today, isSunday: true, alreadySubmitted: false, existing: null }
       : {
-          date: w.yesterday,
-          eligible: false,
-          isSunday: ptDayOfWeek(w.yesterday) === 0,
-          message: eligibilityMessageFor(w.yesterday),
+          date: w.today,
+          isSunday: false,
+          alreadySubmitted: Boolean(todayExisting),
+          existing: dayStatus(todayExisting),
         },
+    yesterday: w.yesterdayIsSunday
+      ? { date: w.yesterday, isSunday: true, acknowledged: Boolean(yesterdayAck) }
+      : w.yesterdayEligible
+        ? {
+            date: w.yesterday,
+            eligible: true,
+            alreadySubmitted: Boolean(yesterdayExisting),
+            existing: dayStatus(yesterdayExisting),
+          }
+        : {
+            date: w.yesterday,
+            eligible: false,
+            isSunday: false,
+            message: eligibilityMessageFor(w.yesterday),
+          },
     streakCount: req.user.streak_count,
     streakShields: req.user.streak_shields,
   });
+});
+
+/**
+ * Confirms "yesterday was a rest day" — writes ONLY a narrow acknowledgement
+ * row (see repositories/restDayAcknowledgements.js), never a daily_scores
+ * row. Rejects anything but the real, currently-applicable Sunday date so a
+ * stale/manipulated client can't backfill an acknowledgement for a date that
+ * was never actually a pending rest day.
+ */
+router.post('/rest-day-ack', requireAuth, async (req, res) => {
+  const w = getSubmissionWindow();
+  if (!w.yesterdayIsSunday || req.body?.date !== w.yesterday) {
+    return res.status(400).json({ error: 'There is no rest day pending acknowledgement right now.' });
+  }
+  const record = await acknowledgeRestDay(req.user.id, w.yesterday, REST_DAY_SOURCE);
+  res.status(201).json({ date: record.rest_date, acknowledgedAt: record.acknowledged_at });
 });
 
 router.post('/', requireAuth, async (req, res) => {

@@ -174,6 +174,8 @@ export default function InspireChallenge() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [ackSubmitting, setAckSubmitting] = useState(false);
+  const [restDayJustConfirmed, setRestDayJustConfirmed] = useState(false);
 
   useEffect(() => {
     apiFetch('/summer-challenge/today').then((res) => {
@@ -209,14 +211,54 @@ export default function InspireChallenge() {
     );
   }
 
-  if (data.today.isSunday) {
+  // Saturday's catch-up window takes precedence over any "today is Sunday"
+  // rest-day state — see DailyScores.jsx for the full explanation of the
+  // 2026-09-06 bug this guards against.
+  if (data.today.isSunday && !data.yesterday?.eligible) {
     return (
       <div className="py-16 text-center space-y-3">
         <div className="text-4xl">☀️</div>
-        <h1 className="text-xl font-bold text-navy">Today is Sunday — your rest day.</h1>
+        <h1 className="text-xl font-bold text-navy">Sunday Rest Day</h1>
         <p className="text-ink-secondary max-w-xs mx-auto">
-          The Inspire Challenge is not required today. Enjoy your day off!
+          Rest is part of the program. Daily Scores and Inspire Challenge are not required today.
+          Enjoy your rest day and come back tomorrow.
         </p>
+      </div>
+    );
+  }
+
+  // Monday morning: yesterday was Sunday — confirm it was a rest day rather
+  // than asking for a Sunday Challenge submission or silently skipping past it.
+  if (data.yesterday?.isSunday && !data.yesterday?.acknowledged) {
+    async function confirmRestDay() {
+      setAckSubmitting(true);
+      try {
+        await apiFetch('/summer-challenge/rest-day-ack', { method: 'POST', body: { date: data.yesterday.date } });
+        setRestDayJustConfirmed(true);
+        setTimeout(() => setData((prev) => ({ ...prev, yesterday: { ...prev.yesterday, acknowledged: true } })), 1200);
+      } catch (err) {
+        setError(err.data?.error || err.message);
+      } finally {
+        setAckSubmitting(false);
+      }
+    }
+    return (
+      <div className="py-16 text-center space-y-4">
+        <div className="text-4xl">☀️</div>
+        <h1 className="text-xl font-bold text-navy">Sunday Rest Day</h1>
+        {restDayJustConfirmed ? (
+          <p className="text-success font-semibold">Rest Day Confirmed ✓<br />Your streak is protected.</p>
+        ) : (
+          <>
+            <p className="text-ink-secondary max-w-xs mx-auto">
+              Yesterday was your scheduled rest day. No Daily Score or Inspire Challenge submission was required.
+            </p>
+            {error && <p className="text-sm font-semibold text-danger">{error}</p>}
+            <button onClick={confirmRestDay} disabled={ackSubmitting} className="btn-bubble px-6 py-2.5 text-navy gradient-inspire-challenge">
+              {ackSubmitting ? 'Confirming…' : 'Confirm Rest Day'}
+            </button>
+          </>
+        )}
       </div>
     );
   }

@@ -418,10 +418,17 @@ export default function MemberProfile() {
           </div>
           {base44Checkpoint && (
             <div className="card p-3 bg-surface-soft space-y-0.5">
-              <p className="text-[10px] uppercase font-bold text-ink-muted">Base44 transition checkpoint applied</p>
+              <p className="text-[10px] uppercase font-bold text-ink-muted">
+                {base44Checkpoint.source === 'base44' ? 'Base44 transition checkpoint applied' : 'Streak admin correction applied'}
+              </p>
               <p className="text-xs text-ink-secondary">
-                As of {base44Checkpoint.checkpointDate}: streak {base44Checkpoint.streakCheckpoint}, {base44Checkpoint.challengePointsCheckpoint} pts / {base44Checkpoint.challengeDaysCheckpoint} days for {base44Checkpoint.challengePeriod}.
-                Staff-approved migration baseline — no per-day Base44 submission records exist for this period; current/all-time figures above are this checkpoint plus verified rebuilt-platform activity since.
+                As of {base44Checkpoint.checkpointDate}: streak {base44Checkpoint.streakCheckpoint}
+                {base44Checkpoint.challengePeriod
+                  ? `, ${base44Checkpoint.challengePointsCheckpoint} pts / ${base44Checkpoint.challengeDaysCheckpoint} days for ${base44Checkpoint.challengePeriod}`
+                  : ''}.{' '}
+                {base44Checkpoint.source === 'base44'
+                  ? 'Staff-approved migration baseline — no per-day Base44 submission records exist for this period; current/all-time figures above are this checkpoint plus verified rebuilt-platform activity since.'
+                  : 'Staff-approved one-time streak correction (reason: sunday-rest-day-hotfix-2026-09-06) — restores continuity a submission-window bug incorrectly broke; does not affect Challenge points, which remain fully derived from real entries.'}
               </p>
             </div>
           )}

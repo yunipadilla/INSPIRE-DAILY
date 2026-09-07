@@ -64,8 +64,10 @@ export default function DailyScores() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [showCelebration, setShowCelebration] = useState(false);
+  const [ackSubmitting, setAckSubmitting] = useState(false);
+  const [restDayJustConfirmed, setRestDayJustConfirmed] = useState(false);
 
-  useEffect(() => {
+  function load() {
     apiFetch('/daily-scores/today').then((res) => {
       setData(res);
       // The server's defaultDate says which day to preselect (yesterday
@@ -73,6 +75,10 @@ export default function DailyScores() {
       // computes this itself from wall-clock time.
       setSelected(res.window.defaultDate === res.window.yesterday ? 'yesterday' : 'today');
     });
+  }
+
+  useEffect(() => {
+    load();
     if (user) setDisplayName(user.fullName);
   }, [user]);
 
@@ -80,14 +86,57 @@ export default function DailyScores() {
     return <div className="py-10 text-center text-ink-secondary">Loading…</div>;
   }
 
-  if (data.today.isSunday) {
+  // Yesterday's catch-up window takes precedence over any "today is Sunday"
+  // rest-day state — Saturday must stay submittable through Sunday noon
+  // regardless of what today is. Checking "is today Sunday" before this was
+  // exactly the 2026-09-06 bug that blocked legitimate Saturday catch-up
+  // submissions and broke real streaks.
+  if (data.today.isSunday && !data.yesterday?.eligible) {
     return (
       <div className="py-16 text-center space-y-3">
         <div className="text-4xl">☀️</div>
-        <h1 className="text-xl font-bold text-navy">Today is Sunday — your rest day.</h1>
+        <h1 className="text-xl font-bold text-navy">Sunday Rest Day</h1>
         <p className="text-ink-secondary max-w-xs mx-auto">
-          Daily Scores are not required today. Enjoy your day off and come back stronger tomorrow.
+          Rest is part of the program. Daily Scores and Inspire Challenge are not required today.
+          Enjoy your rest day and come back tomorrow.
         </p>
+      </div>
+    );
+  }
+
+  // Monday morning: yesterday was Sunday — never ask for a Sunday
+  // reflection, and never silently skip past it either. Confirm, once, that
+  // it was a scheduled rest day, then proceed to today's own form.
+  if (data.yesterday?.isSunday && !data.yesterday?.acknowledged) {
+    async function confirmRestDay() {
+      setAckSubmitting(true);
+      try {
+        await apiFetch('/daily-scores/rest-day-ack', { method: 'POST', body: { date: data.yesterday.date } });
+        setRestDayJustConfirmed(true);
+        setTimeout(() => setData((prev) => ({ ...prev, yesterday: { ...prev.yesterday, acknowledged: true } })), 1200);
+      } catch (err) {
+        setError(err.data?.error || err.message);
+      } finally {
+        setAckSubmitting(false);
+      }
+    }
+    return (
+      <div className="py-16 text-center space-y-4">
+        <div className="text-4xl">☀️</div>
+        <h1 className="text-xl font-bold text-navy">Sunday Rest Day</h1>
+        {restDayJustConfirmed ? (
+          <p className="text-success font-semibold">Rest Day Confirmed ✓<br />Your streak is protected.</p>
+        ) : (
+          <>
+            <p className="text-ink-secondary max-w-xs mx-auto">
+              Yesterday was your scheduled rest day. No Daily Score or Inspire Challenge submission was required.
+            </p>
+            {error && <p className="text-sm font-semibold text-danger">{error}</p>}
+            <button onClick={confirmRestDay} disabled={ackSubmitting} className="btn-bubble px-6 py-2.5 text-navy gradient-daily-scores">
+              {ackSubmitting ? 'Confirming…' : 'Confirm Rest Day'}
+            </button>
+          </>
+        )}
       </div>
     );
   }

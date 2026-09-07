@@ -276,10 +276,11 @@ export async function getMemberProfile(id) {
     challengePeriod: { start: challengeStart, end: challengeEnd },
     base44Checkpoint: checkpointRow
       ? {
+          source: checkpointRow.source,
           checkpointDate: checkpointRow.checkpoint_date,
           streakCheckpoint: checkpointRow.streak_checkpoint,
           challengePeriod: checkpointRow.challenge_period,
-          challengePointsCheckpoint: Number(checkpointRow.challenge_points_checkpoint),
+          challengePointsCheckpoint: checkpointRow.challenge_points_checkpoint == null ? null : Number(checkpointRow.challenge_points_checkpoint),
           challengeDaysCheckpoint: checkpointRow.challenge_days_checkpoint,
           migratedAt: checkpointRow.migrated_at,
         }
