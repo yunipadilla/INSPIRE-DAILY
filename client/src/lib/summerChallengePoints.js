@@ -3,6 +3,10 @@ const COLD_PLUNGE_POINTS = { plunge: 1, shower: 0.5, none: 0 };
 
 // Mirrors server/src/lib/summerChallenge.js exactly — used for live preview
 // only; the server always recomputes the authoritative total on submit.
+export function projectWorkPoints(minutes) {
+  return Math.floor((Number(minutes) || 0) / 30);
+}
+
 export function calculateSummerPoints(entry) {
   let points = 0;
   if (entry.sleepBedBefore10) points += 1;
@@ -15,5 +19,6 @@ export function calculateSummerPoints(entry) {
   if (entry.dailyUpdateSent) points += 4;
   if (entry.nutrition) points += 1;
   if (entry.coldPlungeType) points += COLD_PLUNGE_POINTS[entry.coldPlungeType] || 0;
+  points += projectWorkPoints(entry.projectMinutes);
   return points;
 }

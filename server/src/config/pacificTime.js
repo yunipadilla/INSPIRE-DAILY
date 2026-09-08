@@ -35,6 +35,10 @@ export function isSundayPT(date = new Date()) {
   return ptDayOfWeek(ptDateString(date)) === 0;
 }
 
+export function isFridayPT(date = new Date()) {
+  return ptDayOfWeek(ptDateString(date)) === 5;
+}
+
 /** Add/subtract whole days from a 'YYYY-MM-DD' string, anchored at noon UTC to dodge DST edge cases. */
 export function addDays(dateStr, n) {
   const d = new Date(`${dateStr}T12:00:00Z`);

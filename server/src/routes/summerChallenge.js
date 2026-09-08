@@ -1,12 +1,12 @@
 import { Router } from 'express';
-import { currentMonthBoundsPT } from '../config/pacificTime.js';
+import { currentMonthBoundsPT, isFridayPT } from '../config/pacificTime.js';
 import { requireAuth } from '../middleware/auth.js';
 import { SUMMER_CHALLENGE_LAUNCH_DATE } from '../config/constants.js';
 import { calculateSummerPoints } from '../lib/summerChallenge.js';
 import { getSubmissionWindow, isEligibleSubmissionDate, eligibilityMessageFor } from '../lib/submissionWindow.js';
 import { findByUserAndDate, insertSummerEntry, monthlySummerLeaderboard } from '../repositories/summerEntries.js';
 import { findAcknowledgement, acknowledgeRestDay } from '../repositories/restDayAcknowledgements.js';
-import { query } from '../db.js';
+import { resolveVolunteerMinutesForUser, minutesToHours } from '../services/volunteerTimeService.js';
 
 const REST_DAY_SOURCE = 'inspire_challenge';
 const router = Router();
@@ -24,9 +24,14 @@ function toClientEntry(e) {
     dailyUpdateSent: e.daily_update_sent,
     nutrition: e.nutrition,
     coldPlungeType: e.cold_plunge_type,
+    projectMinutes: e.project_minutes || 0,
     totalPoints: Number(e.total_points),
   };
 }
+
+// A submission can't claim more project time than exists in a day — a
+// generous but real ceiling (16h), not a rubber-stamped arbitrary number.
+const MAX_PROJECT_MINUTES = 960;
 
 /**
  * Same canonical window as Daily Scores (server/src/lib/submissionWindow.js)
@@ -39,10 +44,10 @@ router.get('/today', async (req, res) => {
   const isLaunched = w.today >= SUMMER_CHALLENGE_LAUNCH_DATE;
   const { start: monthStart, end: monthEnd } = currentMonthBoundsPT();
 
-  const volunteerHoursRes = await query(
-    'select coalesce(sum(volunteer_hours), 0)::float as hours from daily_scores where user_id = $1 and date between $2 and $3',
-    [req.user.id, monthStart, monthEnd]
-  );
+  // Canonical resolver — legacy Daily Score hours before the Project Work
+  // launch date, current Challenge project_minutes on/after it, never both
+  // for the same day. See services/volunteerTimeService.js.
+  const volunteerMinutesThisMonth = await resolveVolunteerMinutesForUser(req.user.id, monthStart, monthEnd);
 
   if (!isLaunched) {
     return res.json({
@@ -51,7 +56,7 @@ router.get('/today', async (req, res) => {
       launchDate: SUMMER_CHALLENGE_LAUNCH_DATE,
       today: { date: w.today, isSunday: w.todayIsSunday, alreadySubmitted: false, existing: null },
       yesterday: null,
-      volunteerHoursThisMonth: volunteerHoursRes.rows[0].hours,
+      volunteerHoursThisMonth: minutesToHours(volunteerMinutesThisMonth),
     });
   }
 
@@ -92,7 +97,7 @@ router.get('/today', async (req, res) => {
             isSunday: false,
             message: eligibilityMessageFor(w.yesterday),
           },
-    volunteerHoursThisMonth: volunteerHoursRes.rows[0].hours,
+    volunteerHoursThisMonth: minutesToHours(volunteerMinutesThisMonth),
   });
 });
 
@@ -108,7 +113,16 @@ router.post('/rest-day-ack', async (req, res) => {
   res.status(201).json({ date: record.rest_date, acknowledgedAt: record.acknowledged_at });
 });
 
+/**
+ * Participant-facing leaderboard — visible only on Fridays, Pacific Time;
+ * hidden every other day (server-authoritative, not a client-side date
+ * check). HQ's own leaderboard (services/hq/challengeService.js /
+ * getChallengeLeaderboard, staff-only) is unaffected and available every day.
+ */
 router.get('/leaderboard', async (req, res) => {
+  if (!isFridayPT()) {
+    return res.json({ entries: [], visible: false });
+  }
   const { start, end } = currentMonthBoundsPT();
   const rows = await monthlySummerLeaderboard(start, end);
   const top5 = rows.slice(0, 5).map((r, i) => ({
@@ -121,7 +135,7 @@ router.get('/leaderboard', async (req, res) => {
     score: Number(r.score),
     isCurrentUser: r.id === req.user.id,
   }));
-  res.json({ entries: top5 });
+  res.json({ entries: top5, visible: true });
 });
 
 router.post('/', async (req, res) => {
@@ -152,6 +166,10 @@ router.post('/', async (req, res) => {
     dailyUpdateSent: Boolean(req.body.dailyUpdateSent),
     nutrition: Boolean(req.body.nutrition),
     coldPlungeType: ['plunge', 'shower', 'none'].includes(req.body.coldPlungeType) ? req.body.coldPlungeType : null,
+    // Project/Volunteer Work: 1 pt per complete 30 min, computed server-side
+    // only (calculateSummerPoints) — a client-submitted minute count is
+    // just a duration claim, never a point value to trust directly.
+    projectMinutes: Math.max(0, Math.min(MAX_PROJECT_MINUTES, Math.round(Number(req.body.projectMinutes)) || 0)),
   };
 
   const totalPoints = calculateSummerPoints(values);

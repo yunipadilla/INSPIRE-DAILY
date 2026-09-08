@@ -41,7 +41,10 @@ export const dailyScoreSchema = z.object({
   displayName: z.string().trim().min(1, 'Your name is required.'),
   challenges: z.string().trim().optional().or(z.literal('')),
   earnedWay: z.boolean(),
-  volunteerHours: z.number().min(0).max(12),
+  // Volunteer/Project time moved to Inspire Challenge (project_minutes) —
+  // no longer asked for here, but kept optional (default 0) rather than
+  // removed outright, so historical rows and this column stay valid.
+  volunteerHours: z.number().min(0).max(12).optional(),
   bestSelf: score,
   ceoMindset: score,
   grit: score,

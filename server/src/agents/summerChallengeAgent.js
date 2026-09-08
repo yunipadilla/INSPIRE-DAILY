@@ -24,6 +24,7 @@ export async function runSummerChallengeAgent() {
       dailyUpdateSent: e.daily_update_sent,
       nutrition: e.nutrition,
       coldPlungeType: e.cold_plunge_type,
+      projectMinutes: e.project_minutes,
     });
     if (Number(e.total_points) !== expected) {
       await query('update summer_entries set total_points = $2 where id = $1', [e.id, expected]);

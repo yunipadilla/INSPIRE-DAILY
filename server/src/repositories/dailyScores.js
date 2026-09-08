@@ -31,7 +31,7 @@ export async function insertDailyScore(userId, date, values) {
       values.displayName,
       values.challenges || null,
       values.earnedWay,
-      values.volunteerHours,
+      values.volunteerHours || 0,
       values.bestSelf,
       values.ceoMindset,
       values.grit,

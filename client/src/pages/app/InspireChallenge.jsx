@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
-import { calculateSummerPoints } from '../../lib/summerChallengePoints';
+import { calculateSummerPoints, projectWorkPoints } from '../../lib/summerChallengePoints';
 import { useAuth } from '../../context/AuthContext';
 import { formatDateLabel, formatFullDateLabel } from '../../lib/pacificTime';
 import TileButton from '../../components/TileButton';
@@ -32,6 +32,7 @@ const DEFAULT_ENTRY = {
   dailyUpdateSent: false,
   nutrition: false,
   coldPlungeType: null,
+  projectMinutes: 0,
 };
 
 const MEDAL = ['🥇', '🥈', '🥉'];
@@ -135,8 +136,11 @@ function CategoryCard({ title, points, subtitle, children }) {
   );
 }
 
-function Leaderboard({ entries }) {
-  if (!entries) return null;
+// Server-authoritative: visible === false means it isn't Friday PT — the
+// leaderboard section is hidden entirely, not shown empty (an empty state
+// would misleadingly suggest "no one has points yet" on an ordinary day).
+function Leaderboard({ entries, visible }) {
+  if (!entries || visible === false) return null;
   return (
     <section>
       <SectionHeader icon="🏆" iconBg="rgb(var(--color-warning) / 0.16)" title="Monthly Winners" />
@@ -170,26 +174,40 @@ export default function InspireChallenge() {
   const [data, setData] = useState(null);
   const [selected, setSelected] = useState('today'); // 'today' | 'yesterday'
   const [leaderboard, setLeaderboard] = useState(null);
+  const [leaderboardVisible, setLeaderboardVisible] = useState(true);
   const [entry, setEntry] = useState(DEFAULT_ENTRY);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [ackSubmitting, setAckSubmitting] = useState(false);
   const [restDayJustConfirmed, setRestDayJustConfirmed] = useState(false);
+  const [projectHours, setProjectHours] = useState('');
+  const [projectMins, setProjectMins] = useState('');
 
   useEffect(() => {
     apiFetch('/summer-challenge/today').then((res) => {
       setData(res);
       setSelected(res.window?.defaultDate === res.window?.yesterday ? 'yesterday' : 'today');
     });
-    apiFetch('/summer-challenge/leaderboard').then((d) => setLeaderboard(d.entries));
+    apiFetch('/summer-challenge/leaderboard').then((d) => {
+      setLeaderboard(d.entries);
+      setLeaderboardVisible(d.visible !== false);
+    });
   }, []);
 
   function update(field, value) {
     setEntry((e) => ({ ...e, [field]: value }));
   }
 
+  function updateProjectTime(hoursStr, minsStr) {
+    setProjectHours(hoursStr);
+    setProjectMins(minsStr);
+    const totalMinutes = Math.max(0, (Number(hoursStr) || 0) * 60 + (Number(minsStr) || 0));
+    update('projectMinutes', totalMinutes);
+  }
+
   const livePoints = calculateSummerPoints(entry);
+  const projectWorkPointsEarned = projectWorkPoints(entry.projectMinutes);
 
   if (!data) return <div className="py-10 text-center text-ink-secondary">Loading…</div>;
 
@@ -298,7 +316,7 @@ export default function InspireChallenge() {
             <span className="text-lg font-extrabold text-navy">{data.volunteerHoursThisMonth}</span>
           </div>
         )}
-        <Leaderboard entries={leaderboard} />
+        <Leaderboard entries={leaderboard} visible={leaderboardVisible} />
       </div>
     );
   }
@@ -341,7 +359,7 @@ export default function InspireChallenge() {
 
       {data.volunteerHoursThisMonth > 0 && (
         <div className="card p-3 flex items-center justify-between text-sm">
-          <span className="text-ink-secondary">Volunteer hours logged this month (via Daily Scores)</span>
+          <span className="text-ink-secondary">Volunteer/Project hours logged this month</span>
           <span className="font-bold text-navy">{data.volunteerHoursThisMonth}</span>
         </div>
       )}
@@ -408,6 +426,33 @@ export default function InspireChallenge() {
         <CircleCheck label="Self-assessed intuitive eating" points="+1 pt" checked={entry.nutrition} onChange={(v) => update('nutrition', v)} />
       </CategoryCard>
 
+      <CategoryCard title="Project / Volunteer Work" points="1 pt per 30 min" subtitle="Legitimate project or volunteer work — 1 point for every complete 30 minutes.">
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min={0}
+            className="input w-20"
+            placeholder="0"
+            value={projectHours}
+            onChange={(e) => updateProjectTime(e.target.value, projectMins)}
+          />
+          <span className="text-sm text-ink-secondary">hrs</span>
+          <input
+            type="number"
+            min={0}
+            max={59}
+            className="input w-20"
+            placeholder="0"
+            value={projectMins}
+            onChange={(e) => updateProjectTime(projectHours, e.target.value)}
+          />
+          <span className="text-sm text-ink-secondary">min</span>
+          <span className="ml-auto text-sm font-bold text-warning">
+            {projectWorkPointsEarned > 0 ? `+${projectWorkPointsEarned} pt${projectWorkPointsEarned === 1 ? '' : 's'}` : '0 pts'}
+          </span>
+        </div>
+      </CategoryCard>
+
       <CategoryCard title="Cold Plunge / Cold Shower" points="up to 1 pt">
         <div className="flex gap-2">
           {COLD_OPTIONS.map((o) => (
@@ -437,7 +482,7 @@ export default function InspireChallenge() {
         {submitting ? 'Submitting…' : `Submit My Points · ${livePoints} pts`}
       </button>
 
-      <Leaderboard entries={leaderboard} />
+      <Leaderboard entries={leaderboard} visible={leaderboardVisible} />
     </div>
   );
 }

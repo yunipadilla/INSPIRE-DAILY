@@ -57,7 +57,6 @@ export default function DailyScores() {
   const [displayName, setDisplayName] = useState('');
   const [challenges, setChallenges] = useState('');
   const [earnedWay, setEarnedWay] = useState(null);
-  const [volunteerHours, setVolunteerHours] = useState('');
   const [sliders, setSliders] = useState(DEFAULT_SLIDERS);
   const [goalsWorkedOn, setGoalsWorkedOn] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -163,7 +162,6 @@ export default function DailyScores() {
           displayName,
           challenges,
           earnedWay,
-          volunteerHours: Number(volunteerHours) || 0,
           goalsWorkedOn,
           ...sliders,
         },
@@ -292,18 +290,6 @@ export default function DailyScores() {
         </div>
       </div>
 
-      <div className="card p-6 space-y-2">
-        <Field label={`How many volunteer hours did you ${isYesterday ? 'complete' : 'put in'} ${dayWord}?`} hint="Enter a number between 0–12">
-          <input
-            type="number"
-            min={0}
-            max={12}
-            className="input"
-            value={volunteerHours}
-            onChange={(e) => setVolunteerHours(e.target.value)}
-          />
-        </Field>
-      </div>
 
       <div>
         <h2 className="text-lg font-bold text-navy">Daily Ratings</h2>

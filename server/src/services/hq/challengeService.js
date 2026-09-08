@@ -22,18 +22,12 @@ export async function getChallengeOverview({ days = 30, month } = {}) {
   const { start } = windowBounds(days, today);
   const { start: monthStart, end: monthEnd } = resolveMonthBounds(month);
 
-  const periodKey = monthStart.slice(0, 7);
-  const [totalsRes, pointsRes, categoryRes, trendRes] = await Promise.all([
+  const [totalsRes, breakdown, categoryRes, trendRes] = await Promise.all([
     // Scoped to the selected/current Challenge period (monthStart..monthEnd)
     // — this used to be an unbounded all-time sum despite currentMonth being
     // computed right below, which is exactly the "~219 points on day 3"
     // inflation bug: historical June–August entries were silently included
     // in what the UI presented as the current period's totals.
-    //
-    // total_points is computed per-user (a checkpointed person's pre-
-    // checkpoint entries are replaced by their checkpoint value, never
-    // summed alongside it — same rule as monthlySummerLeaderboard, applied
-    // here as a per-user derived table so the aggregate can't double-count).
     // participants/active_days/entries stay real-row-only — descriptive
     // program-activity counts, not the prize-determining figure.
     query(
@@ -44,21 +38,10 @@ export async function getChallengeOverview({ days = 30, month } = {}) {
         where u.system_role = 'participant' and se.date between $1 and $2`,
       [monthStart, monthEnd]
     ),
-    query(
-      `select coalesce(sum(resolved.points), 0)::numeric as total_points
-         from (
-           select coalesce(bc.challenge_points_checkpoint, 0) + coalesce((
-                    select sum(se2.total_points) from summer_entries se2
-                     where se2.user_id = u.id
-                       and se2.date between $1 and $2
-                       and se2.date > coalesce(bc.checkpoint_date, '1899-12-31'::date)
-                  ), 0) as points
-             from users u
-             left join base44_checkpoints bc on bc.user_id = u.id and bc.challenge_period = $3
-            where u.system_role = 'participant'
-         ) resolved`,
-      [monthStart, monthEnd, periodKey]
-    ),
+    // Checkpoint-aware per-participant breakdown (shared with the HQ Monthly
+    // Snapshot) — summed below for the "Total points" card, so that card and
+    // any per-participant view are guaranteed to agree.
+    getMonthlyChallengeBreakdown(monthStart, monthEnd),
     query(
       `select
          avg(case when sleep_bed_before_10 then 1 else 0 end)::float as sleep_bed_before_10,
@@ -90,7 +73,7 @@ export async function getChallengeOverview({ days = 30, month } = {}) {
   });
 
   const totals = totalsRes.rows[0];
-  const totalPoints = Number(pointsRes.rows[0].total_points);
+  const totalPoints = breakdown.reduce((sum, r) => sum + r.points, 0);
   return {
     participants: totals.participants,
     totalPoints,
@@ -100,6 +83,47 @@ export async function getChallengeOverview({ days = 30, month } = {}) {
     trend,
     currentMonth: { start: monthStart, end: monthEnd },
   };
+}
+
+/**
+ * Reusable, checkpoint-aware, month-scoped per-participant Challenge
+ * breakdown — the shared building block for anything that needs "how many
+ * points/days did each participant log this month" (HQ Monthly Snapshot,
+ * future reports), not just the top-5 leaderboard. Summing `points` (or
+ * `daysLogged`) across every row here equals the program-wide total for the
+ * same month by construction — same per-user formula as
+ * monthlySummerLeaderboard, just returned for every participant instead of
+ * ranked/limited.
+ */
+export async function getMonthlyChallengeBreakdown(monthStart, monthEnd) {
+  const periodKey = monthStart.slice(0, 7);
+  const { rows } = await query(
+    `select u.id, u.first_name, u.last_name,
+            coalesce(bc.challenge_points_checkpoint, 0) + coalesce((
+              select sum(se.total_points) from summer_entries se
+               where se.user_id = u.id
+                 and se.date between $1 and $2
+                 and se.date > coalesce(bc.checkpoint_date, '1899-12-31'::date)
+            ), 0)::numeric as points,
+            coalesce(bc.challenge_days_checkpoint, 0) + coalesce((
+              select count(*) from summer_entries se2
+               where se2.user_id = u.id
+                 and se2.date between $1 and $2
+                 and se2.date > coalesce(bc.checkpoint_date, '1899-12-31'::date)
+            ), 0)::int as days_logged
+       from users u
+       left join base44_checkpoints bc on bc.user_id = u.id and bc.challenge_period = $3
+      where u.system_role = 'participant'
+      order by points desc, u.first_name asc`,
+    [monthStart, monthEnd, periodKey]
+  );
+  return rows.map((r) => ({
+    userId: r.id,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    points: Number(r.points),
+    daysLogged: r.days_logged,
+  }));
 }
 
 /** Full ranked list (not just top 5) — reuses the exact same canonical

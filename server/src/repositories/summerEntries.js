@@ -12,8 +12,8 @@ export async function insertSummerEntry(userId, date, values, totalPoints) {
   const { rows } = await query(
     `insert into summer_entries
       (user_id, date, sleep_bed_before_10, sleep_8h, hydration, exercise, screen_time_tier,
-       mindfulness_sessions, reading_sessions, daily_update_sent, nutrition, cold_plunge_type, total_points)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       mindfulness_sessions, reading_sessions, daily_update_sent, nutrition, cold_plunge_type, project_minutes, total_points)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
      returning *`,
     [
       userId,
@@ -28,6 +28,7 @@ export async function insertSummerEntry(userId, date, values, totalPoints) {
       values.dailyUpdateSent,
       values.nutrition,
       values.coldPlungeType || null,
+      values.projectMinutes || 0,
       totalPoints,
     ]
   );

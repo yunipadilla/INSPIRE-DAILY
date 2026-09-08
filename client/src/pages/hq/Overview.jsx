@@ -14,6 +14,161 @@ function formatPct(rate) {
   return `${Math.round(rate * 100)}%`;
 }
 
+function currentMonthValue() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Monthly Program Snapshot — reusable program-wide totals (never an
+ * individual's numbers; see Summary Agent for that) built entirely from
+ * services/hq/monthlySnapshotService.js. Volunteer/Project Hours and
+ * Inspire Challenge Points are the two primary KPIs; everything else is
+ * secondary and collapsed behind "View breakdown" so the section stays
+ * scannable.
+ */
+function MonthlyProgramSnapshot() {
+  const [monthValue, setMonthValue] = useState(currentMonthValue());
+  const [snapshot, setSnapshot] = useState(null);
+  const [error, setError] = useState(false);
+  const [showVolunteerBreakdown, setShowVolunteerBreakdown] = useState(false);
+  const [showChallengeBreakdown, setShowChallengeBreakdown] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  function load() {
+    const [year, month] = monthValue.split('-').map(Number);
+    setError(false);
+    apiFetch(`/hq/monthly-snapshot?year=${year}&month=${month}`).then(setSnapshot).catch(() => setError(true));
+  }
+
+  useEffect(load, [monthValue]);
+
+  async function refresh() {
+    const [year, month] = monthValue.split('-').map(Number);
+    setRefreshing(true);
+    try {
+      const updated = await apiFetch('/hq/monthly-snapshot/refresh', { method: 'POST', body: { year, month } });
+      setSnapshot(updated);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  const monthLabel = snapshot
+    ? new Date(snapshot.year, snapshot.month - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : '';
+
+  return (
+    <section className="rise-in stagger-1">
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <h2 className="text-sm font-bold text-navy uppercase tracking-wide">Monthly Program Snapshot</h2>
+        <label className="flex items-center gap-1.5 text-sm font-semibold text-navy bg-surface-soft rounded-lg px-3 py-1.5">
+          <span>📅</span>
+          <input
+            type="month"
+            className="bg-transparent border-none outline-none text-sm font-semibold text-navy"
+            value={monthValue}
+            max={currentMonthValue()}
+            onChange={(e) => setMonthValue(e.target.value)}
+          />
+        </label>
+      </div>
+
+      {error && <ErrorState description="Couldn't load the Monthly Program Snapshot." onRetry={load} />}
+
+      {!error && !snapshot && <Skeleton height="140px" />}
+
+      {snapshot && (
+        <div className="card p-5 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-xs font-bold uppercase tracking-wide text-ink-muted">{monthLabel}</span>
+            <div className="flex items-center gap-2">
+              {!snapshot.isCurrentMonth && (
+                <span className="text-[10px] text-ink-muted">
+                  Saved {new Date(snapshot.updatedAt).toLocaleString()} (v{snapshot.sourceVersion})
+                </span>
+              )}
+              <button onClick={refresh} disabled={refreshing} className="btn-secondary px-3 py-1 text-xs">
+                {refreshing ? 'Refreshing…' : 'Refresh Snapshot'}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-xl p-4 gradient-inspire-challenge">
+              <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">Volunteer / Project Hours</p>
+              <p className="text-3xl font-extrabold text-navy mt-1">{snapshot.totalVolunteerHours.toFixed(1)} hrs</p>
+              <button
+                onClick={() => setShowVolunteerBreakdown((v) => !v)}
+                className="text-xs font-semibold text-navy underline mt-2"
+              >
+                {showVolunteerBreakdown ? 'Hide breakdown' : 'View breakdown'}
+              </button>
+            </div>
+            <div className="rounded-xl p-4 gradient-goals">
+              <p className="text-xs font-bold uppercase tracking-wide text-ink-secondary">Inspire Challenge Points</p>
+              <p className="text-3xl font-extrabold text-navy mt-1">{snapshot.totalChallengePoints.toLocaleString()} pts</p>
+              <button
+                onClick={() => setShowChallengeBreakdown((v) => !v)}
+                className="text-xs font-semibold text-navy underline mt-2"
+              >
+                {showChallengeBreakdown ? 'Hide breakdown' : 'View breakdown'}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="text-center">
+              <div className="text-lg font-extrabold text-navy">{snapshot.participantCount}</div>
+              <div className="text-[10px] uppercase text-ink-muted">Active participants</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-extrabold text-navy">{snapshot.challengeDaysLogged}</div>
+              <div className="text-[10px] uppercase text-ink-muted">Challenge days logged</div>
+            </div>
+          </div>
+
+          {showVolunteerBreakdown && (
+            <div className="border-t border-border/8 pt-3">
+              <p className="text-[10px] uppercase font-bold text-ink-muted mb-1.5">Volunteer / Project Hours by participant</p>
+              {snapshot.volunteerBreakdown.length === 0 ? (
+                <p className="text-xs text-ink-secondary">No volunteer/project hours logged this month.</p>
+              ) : (
+                <div className="max-h-64 overflow-y-auto space-y-1">
+                  {snapshot.volunteerBreakdown.map((r) => (
+                    <div key={r.userId} className="flex items-center justify-between text-sm py-0.5">
+                      <span className="text-navy">{r.name}</span>
+                      <span className="font-semibold text-navy">{r.hours.toFixed(1)} hrs</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {showChallengeBreakdown && (
+            <div className="border-t border-border/8 pt-3">
+              <p className="text-[10px] uppercase font-bold text-ink-muted mb-1.5">Inspire Challenge Points by participant</p>
+              {snapshot.challengeBreakdown.length === 0 ? (
+                <p className="text-xs text-ink-secondary">No Challenge points logged this month.</p>
+              ) : (
+                <div className="max-h-64 overflow-y-auto space-y-1">
+                  {snapshot.challengeBreakdown.map((r) => (
+                    <div key={r.userId} className="flex items-center justify-between text-sm py-0.5">
+                      <span className="text-navy">{r.name}</span>
+                      <span className="font-semibold text-navy">{r.points.toFixed(1)} pts · {r.daysLogged}d</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function Overview() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(false);
@@ -54,6 +209,8 @@ export default function Overview() {
           {data.isSunday ? "It's Sunday — the program-wide rest day." : "Here's where the program stands today."}
         </p>
       </div>
+
+      <MonthlyProgramSnapshot />
 
       {/* A. TODAY */}
       <section className="rise-in stagger-1">
