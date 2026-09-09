@@ -32,11 +32,17 @@ export async function getAllCheckpoints() {
 export async function upsertCheckpoint({
   userId, checkpointDate, streakCheckpoint, challengePeriod,
   challengePointsCheckpoint, challengeDaysCheckpoint, createdBy,
+  volunteerMinutesCheckpoint = null,
 }) {
+  // volunteer_minutes_checkpoint uses coalesce(excluded, current) rather than
+  // a flat overwrite: most callers of this function pre-date the field and
+  // never pass it, and an unrelated re-checkpoint (e.g. a later streak-only
+  // correction) must not silently null out a volunteer-hours baseline set by
+  // an earlier, separate call. Pass an explicit value to actually change it.
   const { rows } = await query(
     `insert into base44_checkpoints
-       (user_id, checkpoint_date, streak_checkpoint, challenge_period, challenge_points_checkpoint, challenge_days_checkpoint, created_by)
-     values ($1,$2,$3,$4,$5,$6,$7)
+       (user_id, checkpoint_date, streak_checkpoint, challenge_period, challenge_points_checkpoint, challenge_days_checkpoint, created_by, volunteer_minutes_checkpoint)
+     values ($1,$2,$3,$4,$5,$6,$7,$8)
      on conflict (user_id) do update set
        checkpoint_date = excluded.checkpoint_date,
        streak_checkpoint = excluded.streak_checkpoint,
@@ -44,9 +50,10 @@ export async function upsertCheckpoint({
        challenge_points_checkpoint = excluded.challenge_points_checkpoint,
        challenge_days_checkpoint = excluded.challenge_days_checkpoint,
        created_by = excluded.created_by,
+       volunteer_minutes_checkpoint = coalesce(excluded.volunteer_minutes_checkpoint, base44_checkpoints.volunteer_minutes_checkpoint),
        migrated_at = now()
      returning *`,
-    [userId, checkpointDate, streakCheckpoint, challengePeriod, challengePointsCheckpoint, challengeDaysCheckpoint, createdBy]
+    [userId, checkpointDate, streakCheckpoint, challengePeriod, challengePointsCheckpoint, challengeDaysCheckpoint, createdBy, volunteerMinutesCheckpoint]
   );
   return rows[0];
 }

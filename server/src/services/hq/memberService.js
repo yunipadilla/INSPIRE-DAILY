@@ -6,6 +6,7 @@ import { ptDateString, addDays } from '../../config/pacificTime.js';
 // thing everywhere in HQ, not a second parallel definition of "current."
 import { resolveMonthBounds } from './challengeService.js';
 import { getCheckpointForUser } from '../../repositories/base44Checkpoints.js';
+import { resolveVolunteerMinutesForUser, minutesToHours } from '../volunteerTimeService.js';
 
 // Whitelisted sort keys mapped to real column expressions — never interpolate
 // a client-supplied string directly into ORDER BY.
@@ -146,8 +147,9 @@ export async function getMemberProfile(id) {
   const checkpointRow = await getCheckpointForUser(id);
   const checkpointAppliesToCurrentPeriod = checkpointRow && checkpointRow.challenge_period === periodKey;
   const cpDateBound = checkpointAppliesToCurrentPeriod ? checkpointRow.checkpoint_date : '1899-12-31';
+  const todayStr = ptDateString();
 
-  const [dailyScoresRes, goalsRes, currentPeriodRealRes, outsideCheckpointPeriodRes, challengeHistoryRes, tasksRes, badgesRes, volunteerRes, legacyFactsRes, timelineRes] = await Promise.all([
+  const [dailyScoresRes, goalsRes, currentPeriodRealRes, outsideCheckpointPeriodRes, challengeHistoryRes, tasksRes, badgesRes, volunteerActivityRes, legacyFactsRes, timelineRes, volunteerAllTimeMinutes] = await Promise.all([
     query(
       `select date, total_score, best_self, ceo_mindset, grit, happiness, sleep, volunteer_hours,
               earned_way, challenges, goals_worked_on
@@ -201,10 +203,15 @@ export async function getMemberProfile(id) {
         order by b.earned_date desc`,
       [id]
     ),
+    // Total itself comes from the canonical resolver below (legacy hours +
+    // current project_minutes + any Base44 volunteer-hours checkpoint) —
+    // this query is only for the "most recent activity" date, which needs
+    // both real tables (a raw sum here would double up with the resolver).
     query(
-      `select coalesce(sum(volunteer_hours), 0)::float as total,
-              (select date::text from daily_scores where user_id = $1 and volunteer_hours > 0 order by date desc limit 1) as last_activity
-         from daily_scores where user_id = $1`,
+      `select greatest(
+                (select max(date) from daily_scores where user_id = $1 and volunteer_hours > 0),
+                (select max(date) from summer_entries where user_id = $1 and project_minutes > 0)
+              )::text as last_activity`,
       [id]
     ),
     query(
@@ -238,6 +245,12 @@ export async function getMemberProfile(id) {
        limit 20`,
       [id]
     ),
+    // All-time, via the one canonical resolver (legacy hours + current
+    // project_minutes + any Base44 volunteer-hours checkpoint) — see
+    // services/volunteerTimeService.js. Replaces a prior ad-hoc query here
+    // that summed only daily_scores.volunteer_hours, silently missing every
+    // post-launch project_minutes entry and any checkpointed history.
+    resolveVolunteerMinutesForUser(id, '2000-01-01', todayStr),
   ]);
 
   // Books/logs for this user's own (non-orphan) goals — two queries total,
@@ -288,7 +301,7 @@ export async function getMemberProfile(id) {
     challengeHistory: challengeHistoryRes.rows,
     tasks: tasksRes.rows,
     badges: badgesRes.rows,
-    volunteerHours: { total: volunteerRes.rows[0].total, lastActivity: volunteerRes.rows[0].last_activity },
+    volunteerHours: { total: minutesToHours(volunteerAllTimeMinutes), lastActivity: volunteerActivityRes.rows[0].last_activity },
     // Historical Base44 legacy status is derived ONLY from live DB state —
     // never from re-reading the offline CSV export at runtime (that data is
     // never deployed anywhere; see MIGRATION_READINESS_REPORT.md). This is

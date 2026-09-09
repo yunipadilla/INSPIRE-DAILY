@@ -48,6 +48,7 @@ export async function getVolunteerHoursOverview({ days = 30 } = {}) {
 }
 
 export async function listVolunteerHoursMembers({ search, appRole, page = 1, pageSize = 20 } = {}) {
+  const today = ptDateString();
   const { start: monthStart, end: monthEnd } = currentMonthBoundsPT();
   const conditions = [`u.system_role = 'participant'`];
   const params = [];
@@ -65,44 +66,40 @@ export async function listVolunteerHoursMembers({ search, appRole, page = 1, pag
   const where = conditions.join(' and ');
   const safePage = Math.max(1, Number(page) || 1);
   const safePageSize = Math.min(100, Math.max(1, Number(pageSize) || 20));
-  const offset = (safePage - 1) * safePageSize;
 
-  // Legacy Daily Score hours (before launch) + current Challenge
-  // project_minutes (on/after launch), per user — same split as
-  // volunteerTimeService's canonical resolver, inlined here to stay a
-  // single query rather than N+1 per row.
-  const [rowsRes, countRes] = await Promise.all([
+  // Hours themselves come from the canonical resolver (legacy + current +
+  // any Base44 volunteer-hours checkpoint) — the whole-program form so this
+  // stays two queries total, never N+1 per row. This query only supplies the
+  // filtered participant identity + their most recent raw activity date
+  // (a checkpoint has no day-level resolution, so it can never move
+  // last_activity — see volunteerTimeService.js).
+  const [membersRes, allTime, thisMonth] = await Promise.all([
     query(
       `select u.id, u.first_name, u.last_name,
-              (
-                coalesce((select sum(volunteer_hours) from daily_scores where user_id = u.id and date < $${i}), 0) * 60
-                + coalesce((select sum(project_minutes) from summer_entries where user_id = u.id and date >= $${i}), 0)
-              )::float / 60 as total_hours,
-              (
-                coalesce((select sum(volunteer_hours) from daily_scores where user_id = u.id and date between $${i + 1} and $${i + 2} and date < $${i}), 0) * 60
-                + coalesce((select sum(project_minutes) from summer_entries where user_id = u.id and date between $${i + 1} and $${i + 2} and date >= $${i}), 0)
-              )::float / 60 as month_hours,
               greatest(
                 (select max(date) from daily_scores where user_id = u.id and volunteer_hours > 0),
                 (select max(date) from summer_entries where user_id = u.id and project_minutes > 0)
               ) as last_activity
          from users u
-        where ${where}
-        order by total_hours desc nulls last, u.first_name asc
-        limit $${i + 3} offset $${i + 4}`,
-      [...params, PROJECT_WORK_LAUNCH_DATE, monthStart, monthEnd, safePageSize, offset]
+        where ${where}`,
+      params
     ),
-    query(`select count(*)::int as count from users u where ${where}`, params),
+    resolveVolunteerMinutesForProgram('2000-01-01', today),
+    resolveVolunteerMinutesForProgram(monthStart, monthEnd),
   ]);
 
-  const rows = rowsRes.rows.map((r) => ({
+  const all = membersRes.rows.map((r) => ({
     id: r.id,
     firstName: r.first_name,
     lastName: r.last_name,
-    totalHours: Math.round(r.total_hours * 10) / 10,
-    monthHours: Math.round(r.month_hours * 10) / 10,
+    totalHours: minutesToHours(allTime.byUser.get(r.id) || 0),
+    monthHours: minutesToHours(thisMonth.byUser.get(r.id) || 0),
     lastActivity: r.last_activity,
   }));
+  all.sort((a, b) => b.totalHours - a.totalHours || a.firstName.localeCompare(b.firstName));
 
-  return { rows, total: countRes.rows[0].count, page: safePage, pageSize: safePageSize };
+  const offset = (safePage - 1) * safePageSize;
+  const rows = all.slice(offset, offset + safePageSize);
+
+  return { rows, total: all.length, page: safePage, pageSize: safePageSize };
 }
