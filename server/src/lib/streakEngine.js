@@ -145,10 +145,22 @@ export function applySubmission({ streakCount, streakShields, submittedDates, da
 export function reconcileUserStreak({ user, submittedDates, now = new Date(), checkpoint = null }) {
   const todayStr = ptDateString(now);
   const dow = ptDayOfWeek(todayStr);
+  const beforeNoon = isBeforeNoonPT(now);
 
   // Sunday: never runs. Monday: never runs (Monday's own deadline is Tuesday
-  // noon, so there's nothing to enforce yet).
-  if (dow === 0 || dow === 1) {
+  // noon, so there's nothing to enforce yet). Every other day's "yesterday"
+  // deadline closes at today's noon PT — but only once noon has actually
+  // passed. Before noon, yesterday's catch-up window is still open (the same
+  // grace period calculateStreak/calculateStreakFromCheckpoint already honor
+  // for their own backward/forward walks), so nothing below this line may be
+  // treated as a confirmed miss yet. Falling through to the same plain sync
+  // as Sunday/Monday is what keeps a call made off the exact noon cron
+  // schedule (e.g. an ad-hoc admin recalculation run first thing in the
+  // morning) from firing a premature reset or burning a shield on a day the
+  // user still has hours left to submit — see the 2026-09-09 production
+  // streak-repair incident, where exactly this off-schedule-before-noon call
+  // reset an otherwise-legitimate checkpointed streak to 0.
+  if (dow === 0 || dow === 1 || beforeNoon) {
     const correct = calculateStreak(submittedDates, todayStr, now, checkpoint);
     if (correct !== user.streak_count) {
       return { action: 'sync', streakCount: correct };
@@ -156,9 +168,15 @@ export function reconcileUserStreak({ user, submittedDates, now = new Date(), ch
     return { action: 'none' };
   }
 
-  // Tuesday must reach back to Monday (hopping over the always-skipped Sunday
-  // check-day); Wed-Sat check yesterday.
-  const requiredDate = dow === 2 ? addDays(todayStr, -2) : addDays(todayStr, -1);
+  // Yesterday is always the one newly-closed deadline as of today's noon.
+  // (This used to special-case Tuesday as addDays(todayStr, -2) to "hop over"
+  // Sunday, but that actually landed the required-date check ON Sunday —
+  // a day nobody is ever required or expected to submit — which would have
+  // incorrectly reset every non-checkpointed user's streak every single
+  // Tuesday. Sunday is never a required day and must never be checked here;
+  // plain "yesterday" is correct for every enforcing day, Tuesday included,
+  // since Monday's own deadline is exactly today-at-noon-on-Tuesday.)
+  const requiredDate = addDays(todayStr, -1);
   // A required date on or before an approved checkpoint is already certified
   // by the checkpoint itself — it must never be treated as "missed" just
   // because no literal rebuilt-platform row exists for that date.
