@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { listMembers, getMemberProfile } from '../../services/hq/memberService.js';
+import { getMemberChallengeCategoryBreakdown } from '../../services/hq/challengeService.js';
 import { ALL_APP_ROLES, activateUser, suspendUser, deleteUserPermanently, findById } from '../../repositories/users.js';
 import { requireHQAdmin } from '../../middleware/auth.js';
 import { buildWeeklySummary, buildMonthlySummary } from '../../services/hq/summaryAgentService.js';
@@ -184,6 +185,40 @@ router.get('/:id', async (req, res) => {
       occurredAt: t.occurred_at,
       description: t.description,
     })),
+  });
+});
+
+// Per-day Inspire Challenge category audit for one member, one month — see
+// getMemberChallengeCategoryBreakdown for why this is a separate endpoint
+// from the profile itself (a month selector, not just the last-30 rows the
+// profile's overview already carries).
+router.get('/:id/challenge-breakdown', async (req, res) => {
+  if (!UUID_PATTERN.test(req.params.id)) return res.status(400).json({ error: 'Invalid member id.' });
+  const { month } = req.query;
+  if (month && !/^\d{4}-\d{2}$/.test(month)) {
+    return res.status(400).json({ error: 'Invalid month. Expected YYYY-MM.' });
+  }
+  const target = await findById(req.params.id);
+  if (!target || target.system_role !== 'participant') return res.status(404).json({ error: 'Member not found.' });
+
+  const breakdown = await getMemberChallengeCategoryBreakdown(req.params.id, typeof month === 'string' ? month : undefined);
+  res.json({
+    month: breakdown.month,
+    monthStart: breakdown.monthStart,
+    monthEnd: breakdown.monthEnd,
+    categories: breakdown.categories,
+    rows: breakdown.rows.map((r) => ({
+      date: r.date,
+      submittedAt: r.submittedAt,
+      categories: r.categories,
+      projectMinutes: r.projectMinutes,
+      coldPlungeType: r.coldPlungeType,
+      screenTimeTier: r.screenTimeTier,
+      storedTotal: r.storedTotal,
+      computedTotal: r.computedTotal,
+      mismatch: r.mismatch,
+    })),
+    checkpointSummary: breakdown.checkpointSummary,
   });
 });
 

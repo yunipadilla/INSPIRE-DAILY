@@ -2,6 +2,8 @@ import { query } from '../../db.js';
 import { ptDateString, currentMonthBoundsPT } from '../../config/pacificTime.js';
 import { monthlySummerLeaderboard } from '../../repositories/summerEntries.js';
 import { windowBounds, scaffoldDays } from './metricsHelpers.js';
+import { calculateSummerPointsBreakdown, SUMMER_CHALLENGE_CATEGORIES } from '../../lib/summerChallenge.js';
+import { getCheckpointForUser } from '../../repositories/base44Checkpoints.js';
 
 /** Resolves a `month=YYYY-MM` query param to bounds, defaulting to the
  * current program month — this is how "monthly winners" stays computed
@@ -124,6 +126,98 @@ export async function getMonthlyChallengeBreakdown(monthStart, monthEnd) {
     points: Number(r.points),
     daysLogged: r.days_logged,
   }));
+}
+
+/**
+ * Per-member, per-day Inspire Challenge category audit — the "how did they
+ * actually earn these points" view for HQ Member Profile. Reads the real
+ * stored category fields for each real submission in the selected month and
+ * runs them through calculateSummerPointsBreakdown — the SAME function that
+ * scores a submission at write time — rather than a second HQ-only formula,
+ * so category-input -> category-points -> daily-total has exactly one
+ * source of truth everywhere. The returned `mismatch` flag on a row means
+ * the stored total_points no longer matches what the canonical rules
+ * compute from that row's own category fields right now (drift, or a
+ * genuine scoring bug) — surfaced for staff to investigate, never silently
+ * corrected here.
+ *
+ * A Base44/migration checkpoint has no per-day category resolution by
+ * design (see base44Checkpoints.js) — it is a single aggregate fact for
+ * everything through checkpoint_date, which may already include some of the
+ * real dated rows returned here (e.g. a real Sep 3 entry inside a checkpoint
+ * anchored Sep 9). Rather than fabricate category values for the days that
+ * have none, or silently split the aggregate across dates it was never
+ * attributed to, this returns that aggregate as a separate `checkpointSummary`
+ * object instead of a fake per-day row, clearly noting it covers (and is not
+ * additional to) any real rows already listed for that same range.
+ */
+export async function getMemberChallengeCategoryBreakdown(userId, monthParam) {
+  const { start: monthStart, end: monthEnd } = resolveMonthBounds(monthParam);
+  const periodKey = monthStart.slice(0, 7);
+
+  const [entriesRes, checkpointRow] = await Promise.all([
+    query(
+      `select date::text as date, submitted_at, total_points,
+              sleep_bed_before_10, sleep_8h, hydration, exercise, screen_time_tier,
+              mindfulness_sessions, reading_sessions, daily_update_sent, nutrition,
+              cold_plunge_type, project_minutes
+         from summer_entries
+        where user_id = $1 and date between $2 and $3
+        order by date desc`,
+      [userId, monthStart, monthEnd]
+    ),
+    getCheckpointForUser(userId),
+  ]);
+
+  const rows = entriesRes.rows.map((r) => {
+    const entry = {
+      sleepBedBefore10: r.sleep_bed_before_10,
+      sleep8h: r.sleep_8h,
+      hydration: r.hydration,
+      exercise: r.exercise,
+      screenTimeTier: r.screen_time_tier,
+      mindfulnessSessions: r.mindfulness_sessions,
+      readingSessions: r.reading_sessions,
+      dailyUpdateSent: r.daily_update_sent,
+      nutrition: r.nutrition,
+      coldPlungeType: r.cold_plunge_type,
+      projectMinutes: r.project_minutes,
+    };
+    const { categories, total: computedTotal } = calculateSummerPointsBreakdown(entry);
+    const storedTotal = Number(r.total_points);
+    return {
+      date: r.date,
+      submittedAt: r.submitted_at,
+      categories,
+      projectMinutes: r.project_minutes,
+      coldPlungeType: r.cold_plunge_type,
+      screenTimeTier: r.screen_time_tier,
+      storedTotal,
+      computedTotal,
+      // A whole-cent-of-a-point float rounding gap should never read as a
+      // "mismatch" — only a real discrepancy between stored and recomputed.
+      mismatch: Math.abs(storedTotal - computedTotal) > 0.01,
+    };
+  });
+
+  const checkpointAppliesToMonth = Boolean(checkpointRow && checkpointRow.challenge_period === periodKey);
+  const checkpointSummary = checkpointAppliesToMonth
+    ? {
+        checkpointDate: checkpointRow.checkpoint_date,
+        totalPoints: checkpointRow.challenge_points_checkpoint == null ? null : Number(checkpointRow.challenge_points_checkpoint),
+        daysLogged: checkpointRow.challenge_days_checkpoint,
+        source: checkpointRow.source,
+      }
+    : null;
+
+  return {
+    month: periodKey,
+    monthStart,
+    monthEnd,
+    categories: SUMMER_CHALLENGE_CATEGORIES,
+    rows,
+    checkpointSummary,
+  };
 }
 
 /** Full ranked list (not just top 5) — reuses the exact same canonical

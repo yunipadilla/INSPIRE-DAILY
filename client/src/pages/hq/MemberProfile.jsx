@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import { apiFetch } from '../../lib/api';
+import { ptDateStringNow } from '../../lib/pacificTime';
 import { useAuth } from '../../context/AuthContext';
 import PageTitle from '../../components/ui/PageTitle';
 import EmptyState from '../../components/ui/EmptyState';
@@ -169,6 +170,152 @@ function SummaryAgentPanel({ memberId }) {
             ))}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+const CHALLENGE_MONTH_LOOKBACK = 12;
+
+/** 'YYYY-MM' -> "September 2026". */
+function monthLabel(monthStr) {
+  const [y, m] = monthStr.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+/** 'YYYY-MM-DD' -> "Sep 9" — compact, for a dense per-day audit table. */
+function shortDateLabel(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/** Category cell value: the actual points earned, or "—" for zero/unselected
+ * — never a raw boolean/count, and never blank (ambiguous with "no data"). */
+function fmtCategoryPoints(points) {
+  const n = Number(points) || 0;
+  if (n === 0) return '—';
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
+/**
+ * HQ-only, per-day Inspire Challenge category audit — the "how did they earn
+ * these points" view. Reads the same canonical breakdown the server computes
+ * at submission time (see server/src/lib/summerChallenge.js) via
+ * GET /hq/members/:id/challenge-breakdown; never recomputes points itself.
+ * A Base44/migration checkpoint covering part of the selected month has no
+ * per-day category resolution (a single aggregate fact, not per-day rows —
+ * see base44Checkpoints.js), so it renders as a separate labeled summary,
+ * never fabricated per-day category cells.
+ */
+function ChallengeCategoryBreakdown({ memberId }) {
+  const nowMonth = ptDateStringNow().slice(0, 7);
+  const [month, setMonth] = useState(nowMonth);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setData(null);
+    setError(false);
+    apiFetch(`/hq/members/${memberId}/challenge-breakdown?month=${month}`)
+      .then((d) => { if (!cancelled) setData(d); })
+      .catch(() => { if (!cancelled) setError(true); });
+    return () => { cancelled = true; };
+  }, [memberId, month, reloadKey]);
+
+  const monthOptions = [];
+  {
+    const [y, m] = nowMonth.split('-').map(Number);
+    for (let i = 0; i < CHALLENGE_MONTH_LOOKBACK; i += 1) {
+      const d = new Date(y, m - 1 - i, 1);
+      monthOptions.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wide text-ink-muted">Category breakdown by day</h3>
+          <p className="text-[11px] text-ink-muted">Staff audit view — how each day's points were actually earned.</p>
+        </div>
+        <select className="input-bubble w-auto text-xs" value={month} onChange={(e) => setMonth(e.target.value)}>
+          {monthOptions.map((m) => (
+            <option key={m} value={m}>{monthLabel(m)}</option>
+          ))}
+        </select>
+      </div>
+
+      {error && <ErrorState description="Couldn't load the category breakdown." onRetry={() => setReloadKey((k) => k + 1)} />}
+
+      {!error && !data && <Skeleton height="160px" />}
+
+      {!error && data && data.rows.length === 0 && !data.checkpointSummary && (
+        <EmptyState icon="🏆" title={`No Inspire Challenge entries for ${monthLabel(month)}`} />
+      )}
+
+      {!error && data && (data.rows.length > 0 || data.checkpointSummary) && (
+        <>
+          {data.checkpointSummary && (
+            <div className="card p-3 bg-surface-soft space-y-0.5">
+              <p className="text-[10px] uppercase font-bold text-ink-muted">Category breakdown unavailable — imported Base44 history</p>
+              <p className="text-xs text-ink-secondary">
+                Through {data.checkpointSummary.checkpointDate}: {Number(data.checkpointSummary.totalPoints ?? 0).toFixed(1)} pts across{' '}
+                {data.checkpointSummary.daysLogged} day{data.checkpointSummary.daysLogged === 1 ? '' : 's'}. This is a single migration
+                baseline covering every day through that date — including any real dated rows shown below for the same range — not a
+                separate per-day submission, so it is never added on top of them.
+              </p>
+            </div>
+          )}
+
+          {data.rows.length > 0 && (
+            <div className="card overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-border/8 text-ink-muted uppercase text-[10px]">
+                    <th className="text-left p-2 sticky left-0 bg-surface-elevated z-10">Date</th>
+                    {data.categories.map((c) => (
+                      <th key={c.id} className="p-2 text-center whitespace-nowrap font-semibold">{c.label}</th>
+                    ))}
+                    <th className="p-2 text-center whitespace-nowrap font-semibold">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.rows.map((r) => (
+                    <tr key={r.date} className={`border-b border-border/6 last:border-0 ${r.mismatch ? 'bg-danger/5' : ''}`}>
+                      <td className="p-2 sticky left-0 bg-surface-elevated font-medium text-navy whitespace-nowrap">
+                        {shortDateLabel(r.date)}
+                      </td>
+                      {data.categories.map((c) => (
+                        <td key={c.id} className="p-2 text-center whitespace-nowrap text-ink-secondary">
+                          {c.id === 'projectMinutes' ? (
+                            r.projectMinutes ? (
+                              <span className="inline-flex flex-col leading-tight">
+                                <span className="text-navy">{r.projectMinutes} min</span>
+                                <span className="text-ink-muted">{fmtCategoryPoints(r.categories.projectMinutes)} pt{r.categories.projectMinutes === 1 ? '' : 's'}</span>
+                              </span>
+                            ) : '—'
+                          ) : (
+                            fmtCategoryPoints(r.categories[c.id])
+                          )}
+                        </td>
+                      ))}
+                      <td className="p-2 text-center whitespace-nowrap">
+                        <span className="font-bold text-navy">{r.computedTotal.toFixed(1)}</span>
+                        {r.mismatch && (
+                          <div className="text-[9px] font-bold text-danger normal-case leading-tight mt-0.5">
+                            POINT TOTAL MISMATCH<br />(stored {r.storedTotal.toFixed(1)})
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -440,28 +587,7 @@ export default function MemberProfile() {
               <div className="card p-2 text-center"><div className="font-bold text-navy">{catAvg('mindfulnessSessions', false)?.toFixed(1) ?? '—'}</div><div className="text-ink-muted">Avg mindfulness</div></div>
             </div>
           )}
-          {challengeHistory.length === 0 ? (
-            <EmptyState icon="🏆" title="No Inspire Challenge entries yet" />
-          ) : (
-            <div className="card overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-border/8 text-ink-muted uppercase text-[10px]">
-                    <th className="text-left p-2">Date</th><th className="p-2">Points</th><th className="text-left p-2">Recorded</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {challengeHistory.map((c) => (
-                    <tr key={c.date} className="border-b border-border/6 last:border-0">
-                      <td className="p-2">{c.date}</td>
-                      <td className="p-2 text-center">{c.totalPoints.toFixed(1)}</td>
-                      <td className="p-2">{c.submittedAt ? new Date(c.submittedAt).toLocaleString() : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <ChallengeCategoryBreakdown memberId={id} />
         </div>
       )}
 
