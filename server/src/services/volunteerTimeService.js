@@ -23,45 +23,64 @@
  * them to, so inventing one would fabricate every other field on that row —
  * see base44Checkpoints.js). This is only ever safe to add to a WHOLE-period
  * total whose start reaches back on/before checkpoint_date, matched with
- * excluding real rows dated on/before checkpoint_date from the raw sum
- * (same pattern as the Challenge-points checkpoint) — never to a per-day
- * breakdown, which has no way to honestly place an aggregate on one day.
- * Every caller here computes a whole-period total, so this is safe
- * everywhere it's applied; a caller needing a day-by-day trend must keep
- * reading raw rows directly and simply won't show the checkpoint's
- * contribution as any single day's bar, which is the honest outcome.
+ * excluding real rows from the raw sum (same pattern as the Challenge-points
+ * checkpoint) — never to a per-day breakdown, which has no way to honestly
+ * place an aggregate on one day. Every caller here computes a whole-period
+ * total, so this is safe everywhere it's applied; a caller needing a
+ * day-by-day trend must keep reading raw rows directly and simply won't show
+ * the checkpoint's contribution as any single day's bar, which is the
+ * honest outcome.
+ *
+ * Critically, that exclusion is bounded to the checkpoint's own
+ * `challenge_period` month (checkpoint_date's month), NOT "everything ever
+ * before checkpoint_date" — a checkpointed user can have entirely real,
+ * unrelated legacy volunteer hours in earlier months (e.g. June-August,
+ * before any migration checkpoint existed), and an unbounded exclusion
+ * would silently drop those from an all-time total the moment a checkpoint
+ * is set. Only real rows that fall WITHIN the checkpoint's own month AND
+ * on/before checkpoint_date are excluded/replaced; every other month's real
+ * rows are always summed normally, checkpoint or not.
  */
 import { query } from '../db.js';
 import { PROJECT_WORK_LAUNCH_DATE } from '../config/constants.js';
 import { getCheckpointForUser, getAllCheckpoints } from '../repositories/base44Checkpoints.js';
+
+/** First day ('YYYY-MM-01') of a checkpoint's own challenge_period
+ * ('YYYY-MM'), or null if the checkpoint has no period-scoped data — a
+ * volunteer-minutes checkpoint with no challenge_period has no month to
+ * bound its exclusion to, so it's simply not applied rather than guessed. */
+function checkpointPeriodStart(checkpoint) {
+  return checkpoint?.challenge_period ? `${checkpoint.challenge_period}-01` : null;
+}
 
 /** One user, one period. Returns total minutes (legacy hours -> minutes,
  * rounded, + current minutes, + any applicable checkpoint minutes), never
  * negative, never fabricated. */
 export async function resolveVolunteerMinutesForUser(userId, startDate, endDate) {
   const checkpoint = await getCheckpointForUser(userId);
-  const cpDate = checkpoint?.volunteer_minutes_checkpoint != null && startDate <= checkpoint.checkpoint_date
-    ? checkpoint.checkpoint_date
-    : null;
+  const periodStart = checkpointPeriodStart(checkpoint);
+  const applies = checkpoint?.volunteer_minutes_checkpoint != null && periodStart && startDate <= checkpoint.checkpoint_date;
+  const cpDate = applies ? checkpoint.checkpoint_date : null;
+  const cpPeriodStart = applies ? periodStart : null;
 
   const [legacyRes, currentRes] = await Promise.all([
     query(
       `select coalesce(sum(volunteer_hours), 0)::float as hours
          from daily_scores
         where user_id = $1 and date between $2 and $3 and date < $4
-          and date > coalesce($5::date, '1899-12-31'::date)`,
-      [userId, startDate, endDate, PROJECT_WORK_LAUNCH_DATE, cpDate]
+          and not (date >= coalesce($5::date, '9999-12-31'::date) and date <= coalesce($6::date, '0001-01-01'::date))`,
+      [userId, startDate, endDate, PROJECT_WORK_LAUNCH_DATE, cpPeriodStart, cpDate]
     ),
     query(
       `select coalesce(sum(project_minutes), 0)::int as minutes
          from summer_entries
         where user_id = $1 and date between $2 and $3 and date >= $4
-          and date > coalesce($5::date, '1899-12-31'::date)`,
-      [userId, startDate, endDate, PROJECT_WORK_LAUNCH_DATE, cpDate]
+          and not (date >= coalesce($5::date, '9999-12-31'::date) and date <= coalesce($6::date, '0001-01-01'::date))`,
+      [userId, startDate, endDate, PROJECT_WORK_LAUNCH_DATE, cpPeriodStart, cpDate]
     ),
   ]);
   const legacyMinutes = Math.round(Number(legacyRes.rows[0].hours) * 60);
-  const checkpointMinutes = cpDate ? checkpoint.volunteer_minutes_checkpoint : 0;
+  const checkpointMinutes = applies ? checkpoint.volunteer_minutes_checkpoint : 0;
   return legacyMinutes + currentRes.rows[0].minutes + checkpointMinutes;
 }
 
@@ -79,9 +98,10 @@ export async function resolveVolunteerMinutesForProgram(startDate, endDate) {
       `select ds.user_id, coalesce(sum(ds.volunteer_hours), 0)::float as hours
          from daily_scores ds
          join users u on u.id = ds.user_id
-         left join base44_checkpoints bc on bc.user_id = ds.user_id and bc.volunteer_minutes_checkpoint is not null and $1 <= bc.checkpoint_date
+         left join base44_checkpoints bc on bc.user_id = ds.user_id and bc.volunteer_minutes_checkpoint is not null
+              and bc.challenge_period is not null and $1 <= bc.checkpoint_date
         where u.system_role = 'participant' and ds.date between $1 and $2 and ds.date < $3
-          and ds.date > coalesce(bc.checkpoint_date, '1899-12-31'::date)
+          and not (ds.date >= coalesce((bc.challenge_period || '-01')::date, '9999-12-31'::date) and ds.date <= coalesce(bc.checkpoint_date, '0001-01-01'::date))
         group by ds.user_id`,
       [startDate, endDate, PROJECT_WORK_LAUNCH_DATE]
     ),
@@ -89,9 +109,10 @@ export async function resolveVolunteerMinutesForProgram(startDate, endDate) {
       `select se.user_id, coalesce(sum(se.project_minutes), 0)::int as minutes
          from summer_entries se
          join users u on u.id = se.user_id
-         left join base44_checkpoints bc on bc.user_id = se.user_id and bc.volunteer_minutes_checkpoint is not null and $1 <= bc.checkpoint_date
+         left join base44_checkpoints bc on bc.user_id = se.user_id and bc.volunteer_minutes_checkpoint is not null
+              and bc.challenge_period is not null and $1 <= bc.checkpoint_date
         where u.system_role = 'participant' and se.date between $1 and $2 and se.date >= $3
-          and se.date > coalesce(bc.checkpoint_date, '1899-12-31'::date)
+          and not (se.date >= coalesce((bc.challenge_period || '-01')::date, '9999-12-31'::date) and se.date <= coalesce(bc.checkpoint_date, '0001-01-01'::date))
         group by se.user_id`,
       [startDate, endDate, PROJECT_WORK_LAUNCH_DATE]
     ),
@@ -108,7 +129,7 @@ export async function resolveVolunteerMinutesForProgram(startDate, endDate) {
   // window whose start reaches back on/before their checkpoint_date — see
   // resolveVolunteerMinutesForUser's cpDate gate for why that's required.
   for (const [userId, cp] of checkpoints) {
-    if (cp.volunteer_minutes_checkpoint != null && startDate <= cp.checkpoint_date) {
+    if (cp.volunteer_minutes_checkpoint != null && cp.challenge_period && startDate <= cp.checkpoint_date) {
       byUser.set(userId, (byUser.get(userId) || 0) + cp.volunteer_minutes_checkpoint);
     }
   }
