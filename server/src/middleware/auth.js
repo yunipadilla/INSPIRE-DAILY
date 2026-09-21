@@ -1,6 +1,9 @@
 import { verifyToken } from '../lib/jwt.js';
 import { findById } from '../repositories/users.js';
 import { isActive, isPending } from '../config/accountStatus.js';
+import { ptDateString } from '../config/pacificTime.js';
+import { getCheckpointForUser } from '../repositories/base44Checkpoints.js';
+import { reconcileOneUser } from '../agents/dailyScoresAgent.js';
 
 function extractToken(req) {
   if (req.cookies?.token) return req.cookies.token;
@@ -39,6 +42,45 @@ export async function requireAuth(req, res, next) {
         accountStatus: user.account_status,
       });
     }
+    // Opportunistic streak/shield reconciliation. This app runs on Render's
+    // free tier, which suspends the process when idle — an in-process cron
+    // (dailyScoresAgent's noon-PT schedule) simply isn't running most of the
+    // time, so it cannot be trusted alone to catch a missed required day the
+    // moment it happens (confirmed as the root cause of a 2026-09-16
+    // incident where a shield had genuinely protected a streak but the
+    // decrement sat uncommitted for hours). Piggybacking on real
+    // authenticated traffic — which the free tier does serve — makes this
+    // self-healing: at most once per PT calendar day per user (guarded by
+    // last_streak_reconcile_date, so this never re-runs on every request),
+    // cheap (two lookups), and never allowed to fail or slow down the
+    // request it rides in on.
+    const today = ptDateString();
+    if (user.last_streak_reconcile_date !== today) {
+      try {
+        const checkpointRow = await getCheckpointForUser(user.id);
+        const checkpoint = checkpointRow
+          ? { checkpointDate: checkpointRow.checkpoint_date, streakCheckpoint: checkpointRow.streak_checkpoint }
+          : null;
+        // reconcileOneUser already persisted whichever of these fields
+        // changed — mirror the same outcome onto this in-memory user so the
+        // CURRENT request (e.g. Home) reflects it immediately too, without
+        // re-deriving per-action-type logic that could drift from what was
+        // actually written.
+        const outcome = await reconcileOneUser(user, new Date(), checkpoint);
+        if ('streakCount' in outcome) user.streak_count = outcome.streakCount;
+        if ('streakShields' in outcome) user.streak_shields = outcome.streakShields;
+        if ('streakLastDate' in outcome) user.streak_last_date = outcome.streakLastDate;
+        if ('shieldProgressAnchor' in outcome) user.shield_progress_anchor = outcome.shieldProgressAnchor;
+        if ('recoveryAvailableUntil' in outcome) user.streak_recovery_available_until = outcome.recoveryAvailableUntil;
+        if ('recoveryPriorCount' in outcome) user.streak_recovery_prior_count = outcome.recoveryPriorCount;
+        user.last_streak_reconcile_date = today;
+      } catch (err) {
+        // Never let a reconciliation hiccup break authentication — the real
+        // noon-PT cron and the next request both get another chance.
+        console.error('[requireAuth] opportunistic streak reconciliation failed (non-fatal):', err.message);
+      }
+    }
+
     req.user = user;
     next();
   } catch {

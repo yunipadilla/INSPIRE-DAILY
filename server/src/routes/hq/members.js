@@ -7,6 +7,8 @@ import { buildWeeklySummary, buildMonthlySummary } from '../../services/hq/summa
 import { renderSummaryPdf } from '../../services/hq/summaryAgentPdf.js';
 import { buildReportRelativePath, saveReportPdf, readReportPdf } from '../../lib/reportStorage.js';
 import { insertReportSummary, listReportSummariesForUser, findReportSummaryById } from '../../repositories/reportSummaries.js';
+import { listShieldEventsForUser } from '../../repositories/streakShieldEvents.js';
+import { STREAK_CONSTANTS } from '../../lib/streakEngine.js';
 
 const router = Router();
 
@@ -219,6 +221,33 @@ router.get('/:id/challenge-breakdown', async (req, res) => {
       mismatch: r.mismatch,
     })),
     checkpointSummary: breakdown.checkpointSummary,
+  });
+});
+
+// Read-only shield audit trail for one member — every earned/consumed/
+// admin_correction event, most recent first (see
+// repositories/streakShieldEvents.js). No write path here: this rebuild's
+// automatic earn/consume logic is the only thing that should ever touch
+// shield state, short of a genuine future admin-correction workflow, which
+// does not exist yet.
+router.get('/:id/shield-history', async (req, res) => {
+  if (!UUID_PATTERN.test(req.params.id)) return res.status(400).json({ error: 'Invalid member id.' });
+  const target = await findById(req.params.id);
+  if (!target || target.system_role !== 'participant') return res.status(404).json({ error: 'Member not found.' });
+
+  const events = await listShieldEventsForUser(req.params.id);
+  res.json({
+    currentShields: target.streak_shields,
+    maxShields: STREAK_CONSTANTS.MAX_SHIELDS,
+    events: events.map((e) => ({
+      id: e.id,
+      eventType: e.event_type,
+      amount: e.amount,
+      streakValue: e.streak_value,
+      eventDate: e.event_date,
+      reason: e.reason,
+      createdAt: e.created_at,
+    })),
   });
 });
 

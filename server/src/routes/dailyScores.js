@@ -8,10 +8,12 @@ import {
   insertDailyScore,
 } from '../repositories/dailyScores.js';
 import { applySubmission, STREAK_CONSTANTS } from '../lib/streakEngine.js';
-import { updateStreakFields } from '../repositories/users.js';
 import { postCelebration } from '../repositories/celebrationFeed.js';
 import { getCheckpointForUser } from '../repositories/base44Checkpoints.js';
 import { findAcknowledgement, acknowledgeRestDay } from '../repositories/restDayAcknowledgements.js';
+import { insertShieldEvent, listBridgedDatesForUser } from '../repositories/streakShieldEvents.js';
+import { ptDateString } from '../config/pacificTime.js';
+import { withTransaction } from '../db.js';
 
 const REST_DAY_SOURCE = 'daily_scores';
 
@@ -126,23 +128,59 @@ router.post('/', requireAuth, async (req, res) => {
 
   const record = await insertDailyScore(req.user.id, targetDate, parsed.data);
 
-  const priorDates = await listDatesForUser(req.user.id);
+  const [priorDates, previouslyBridgedDates] = await Promise.all([
+    listDatesForUser(req.user.id),
+    listBridgedDatesForUser(req.user.id),
+  ]);
   const checkpointRow = await getCheckpointForUser(req.user.id);
   const checkpoint = checkpointRow
     ? { checkpointDate: checkpointRow.checkpoint_date, streakCheckpoint: checkpointRow.streak_checkpoint }
     : null;
-  const { streakCount, streakShields, earnedShield } = applySubmission({
+  const { streakCount, streakShields, earnedShield, shieldProgressAnchor, bridgedDates } = applySubmission({
     streakCount: req.user.streak_count,
     streakShields: req.user.streak_shields,
     submittedDates: priorDates,
     dateJustSubmitted: targetDate,
     checkpoint,
+    shieldProgressAnchor: req.user.shield_progress_anchor,
+    previouslyBridgedDates,
   });
 
-  await updateStreakFields(req.user.id, {
-    streak_count: streakCount,
-    streak_shields: streakShields,
-    streak_last_date: targetDate,
+  // Streak fields and any shield ledger rows (consumed while bridging a gap
+  // this submission just discovered, and/or newly earned) commit together —
+  // see streakEngine.js's module doc comment for why a submission landing
+  // after an unprotected gap must never save the streak without also
+  // deducting the shield that protected it, or the reverse.
+  await withTransaction(async (client) => {
+    await client.query(
+      `update users
+          set streak_count = $2, streak_shields = $3, streak_last_date = $4,
+              shield_progress_anchor = $5, last_streak_reconcile_date = $6
+        where id = $1`,
+      [req.user.id, streakCount, streakShields, targetDate, shieldProgressAnchor, ptDateString()]
+    );
+    for (const bridgedDate of bridgedDates) {
+      await insertShieldEvent({
+        userId: req.user.id,
+        eventType: 'consumed',
+        amount: -1,
+        streakValue: streakCount,
+        eventDate: bridgedDate,
+        reason: 'Missed required Daily Score day — streak protected by shield.',
+        client,
+      });
+    }
+    if (earnedShield) {
+      await insertShieldEvent({
+        userId: req.user.id,
+        eventType: 'earned',
+        amount: 1,
+        streakValue: streakCount,
+        eventDate: targetDate,
+        reason: '7 consecutive required Daily Score days completed.',
+        client,
+      });
+    }
   });
 
   if (earnedShield) {

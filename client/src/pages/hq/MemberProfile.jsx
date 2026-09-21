@@ -321,6 +321,58 @@ function ChallengeCategoryBreakdown({ memberId }) {
   );
 }
 
+const SHIELD_EVENT_LABEL = { earned: 'Earned', consumed: 'Used', admin_correction: 'Admin correction' };
+const SHIELD_EVENT_COLOR = { earned: 'text-success', consumed: 'text-warning', admin_correction: 'text-ink-secondary' };
+
+/**
+ * HQ-only, read-only shield audit trail — GET /hq/members/:id/shield-history
+ * (repositories/streakShieldEvents.js). No write path exists here or on the
+ * server for a normal staff account; the automatic earn/consume logic (see
+ * streakEngine.js) is the only thing that touches shield state today.
+ */
+function ShieldHistoryPanel({ memberId }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch(`/hq/members/${memberId}/shield-history`)
+      .then((d) => { if (!cancelled) setData(d); })
+      .catch(() => { if (!cancelled) setError(true); });
+    return () => { cancelled = true; };
+  }, [memberId]);
+
+  return (
+    <div className="card p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-ink-muted">Shield history</h3>
+        {data && <span className="text-sm font-bold text-navy">🛡️ {data.currentShields}/{data.maxShields}</span>}
+      </div>
+      {error && <p className="text-xs text-danger">Couldn't load shield history.</p>}
+      {!error && !data && <Skeleton height="60px" />}
+      {!error && data && data.events.length === 0 && (
+        <p className="text-xs text-ink-muted">No shield events recorded yet.</p>
+      )}
+      {!error && data && data.events.length > 0 && (
+        <div className="space-y-1 max-h-56 overflow-y-auto">
+          {data.events.map((e) => (
+            <div key={e.id} className="flex items-center justify-between text-xs py-1 border-b border-border/6 last:border-0">
+              <span className={`font-semibold ${SHIELD_EVENT_COLOR[e.eventType] || 'text-navy'}`}>
+                {SHIELD_EVENT_LABEL[e.eventType] || e.eventType} — {e.eventDate}
+              </span>
+              <span className="text-ink-muted truncate ml-2">
+                {e.eventType === 'consumed' && e.streakValue != null
+                  ? `Protected ${e.streakValue}-day streak`
+                  : e.reason || '—'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MemberProfile() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -419,6 +471,8 @@ export default function MemberProfile() {
             <div><span className="text-ink-muted">Tasks completed:</span> <span className="text-navy font-medium">{tasksCompleted.length}</span></div>
             <div><span className="text-ink-muted">Phone:</span> <span className="text-navy font-medium">{member.phone || '—'}</span></div>
           </div>
+
+          <ShieldHistoryPanel memberId={member.id} />
 
           {/* Historical Base44 migration status — read-only, derived only from
               live DB state, never from re-reading the offline export. */}
