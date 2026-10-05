@@ -7,8 +7,9 @@ import { buildWeeklySummary, buildMonthlySummary } from '../../services/hq/summa
 import { renderSummaryPdf } from '../../services/hq/summaryAgentPdf.js';
 import { buildReportRelativePath, saveReportPdf, readReportPdf } from '../../lib/reportStorage.js';
 import { insertReportSummary, listReportSummariesForUser, findReportSummaryById } from '../../repositories/reportSummaries.js';
-import { listShieldEventsForUser } from '../../repositories/streakShieldEvents.js';
+import { listShieldEventsForUser, countVoidedShieldEventsForUser } from '../../repositories/streakShieldEvents.js';
 import { STREAK_CONSTANTS } from '../../lib/streakEngine.js';
+import { resolveStreakState } from '../../services/streakService.js';
 
 const router = Router();
 
@@ -235,10 +236,19 @@ router.get('/:id/shield-history', async (req, res) => {
   const target = await findById(req.params.id);
   if (!target || target.system_role !== 'participant') return res.status(404).json({ error: 'Member not found.' });
 
-  const events = await listShieldEventsForUser(req.params.id);
+  const [events, voidedCount, state] = await Promise.all([
+    listShieldEventsForUser(req.params.id),
+    countVoidedShieldEventsForUser(req.params.id),
+    resolveStreakState(req.params.id),
+  ]);
   res.json({
+    currentStreak: target.streak_count,
     currentShields: target.streak_shields,
     maxShields: STREAK_CONSTANTS.MAX_SHIELDS,
+    // Read-only replay: completed required days toward the next shield.
+    progressToNextShield: state.shields >= STREAK_CONSTANTS.MAX_SHIELDS ? null : state.progress,
+    shieldIntervalDays: STREAK_CONSTANTS.SHIELD_INTERVAL_DAYS,
+    voidedCount,
     events: events.map((e) => ({
       id: e.id,
       eventType: e.event_type,

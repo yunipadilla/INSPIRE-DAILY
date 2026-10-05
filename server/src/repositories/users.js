@@ -10,7 +10,7 @@ const PUBLIC_COLUMNS = `
   app_role, account_status, system_role, quote_of_day, parental_consent_required,
   parental_consent_status, streak_count, streak_shields, streak_last_date,
   streak_recovery_available_until, streak_recovery_prior_count,
-  shield_progress_anchor, last_streak_reconcile_date,
+  last_streak_reconciled_at,
   created_at, approved_at, password_changed_at, theme_preference
 `;
 

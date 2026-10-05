@@ -2,18 +2,11 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { dailyScoreSchema } from '../lib/validators.js';
 import { getSubmissionWindow, isEligibleSubmissionDate, eligibilityMessageFor } from '../lib/submissionWindow.js';
-import {
-  findByUserAndDate,
-  listDatesForUser,
-  insertDailyScore,
-} from '../repositories/dailyScores.js';
-import { applySubmission, STREAK_CONSTANTS } from '../lib/streakEngine.js';
+import { findByUserAndDate, insertDailyScore } from '../repositories/dailyScores.js';
+import { STREAK_CONSTANTS } from '../lib/streakEngine.js';
+import { reconcileUser } from '../services/streakService.js';
 import { postCelebration } from '../repositories/celebrationFeed.js';
-import { getCheckpointForUser } from '../repositories/base44Checkpoints.js';
 import { findAcknowledgement, acknowledgeRestDay } from '../repositories/restDayAcknowledgements.js';
-import { insertShieldEvent, listBridgedDatesForUser } from '../repositories/streakShieldEvents.js';
-import { ptDateString } from '../config/pacificTime.js';
-import { withTransaction } from '../db.js';
 
 const REST_DAY_SOURCE = 'daily_scores';
 
@@ -128,60 +121,21 @@ router.post('/', requireAuth, async (req, res) => {
 
   const record = await insertDailyScore(req.user.id, targetDate, parsed.data);
 
-  const [priorDates, previouslyBridgedDates] = await Promise.all([
-    listDatesForUser(req.user.id),
-    listBridgedDatesForUser(req.user.id),
-  ]);
-  const checkpointRow = await getCheckpointForUser(req.user.id);
-  const checkpoint = checkpointRow
-    ? { checkpointDate: checkpointRow.checkpoint_date, streakCheckpoint: checkpointRow.streak_checkpoint }
-    : null;
-  const { streakCount, streakShields, earnedShield, shieldProgressAnchor, bridgedDates } = applySubmission({
-    streakCount: req.user.streak_count,
-    streakShields: req.user.streak_shields,
-    submittedDates: priorDates,
-    dateJustSubmitted: targetDate,
-    checkpoint,
-    shieldProgressAnchor: req.user.shield_progress_anchor,
-    previouslyBridgedDates,
-  });
-
-  // Streak fields and any shield ledger rows (consumed while bridging a gap
-  // this submission just discovered, and/or newly earned) commit together —
-  // see streakEngine.js's module doc comment for why a submission landing
-  // after an unprotected gap must never save the streak without also
-  // deducting the shield that protected it, or the reverse.
-  await withTransaction(async (client) => {
-    await client.query(
-      `update users
-          set streak_count = $2, streak_shields = $3, streak_last_date = $4,
-              shield_progress_anchor = $5, last_streak_reconcile_date = $6
-        where id = $1`,
-      [req.user.id, streakCount, streakShields, targetDate, shieldProgressAnchor, ptDateString()]
-    );
-    for (const bridgedDate of bridgedDates) {
-      await insertShieldEvent({
-        userId: req.user.id,
-        eventType: 'consumed',
-        amount: -1,
-        streakValue: streakCount,
-        eventDate: bridgedDate,
-        reason: 'Missed required Daily Score day — streak protected by shield.',
-        client,
-      });
-    }
-    if (earnedShield) {
-      await insertShieldEvent({
-        userId: req.user.id,
-        eventType: 'earned',
-        amount: 1,
-        streakValue: streakCount,
-        eventDate: targetDate,
-        reason: '7 consecutive required Daily Score days completed.',
-        client,
-      });
-    }
-  });
+  // The new row is the event; the canonical service derives everything from
+  // it (streak, shields, ledger) in one transaction — this route does no
+  // streak math of its own.
+  // The row is already saved; a reconcile hiccup must not turn that into a
+  // failed submission — the next request/cron reconciles it.
+  let r = null;
+  try {
+    r = await reconcileUser(req.user.id, { source: 'submission' });
+  } catch (err) {
+    console.error('[dailyScores] post-submission reconcile failed (will self-heal):', err.message);
+  }
+  const streakCount = r && !r.anomaly ? r.after.streak : req.user.streak_count;
+  const streakShields = r && !r.anomaly ? r.after.shields : req.user.streak_shields;
+  const earnedShield = Boolean(r?.insertedEvents?.some((e) => e.type === 'earned' && e.date === targetDate));
+  const streakAdvanced = Boolean(r && !r.anomaly && r.after.streak > r.before.streak);
 
   if (earnedShield) {
     await postCelebration({
@@ -190,7 +144,7 @@ router.post('/', requireAuth, async (req, res) => {
       message: `${req.user.first_name} earned a streak shield! 🛡️`,
     });
   }
-  if (streakCount > 0 && streakCount % 7 === 0) {
+  if (streakAdvanced && streakCount > 0 && streakCount % 7 === 0) {
     await postCelebration({
       type: 'streak_milestone',
       userId: req.user.id,

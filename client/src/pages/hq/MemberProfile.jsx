@@ -321,14 +321,15 @@ function ChallengeCategoryBreakdown({ memberId }) {
   );
 }
 
-const SHIELD_EVENT_LABEL = { earned: 'Earned', consumed: 'Used', admin_correction: 'Admin correction' };
+const SHIELD_EVENT_LABEL = { earned: 'Shield earned', consumed: 'Shield used', admin_correction: 'Admin correction' };
 const SHIELD_EVENT_COLOR = { earned: 'text-success', consumed: 'text-warning', admin_correction: 'text-ink-secondary' };
 
 /**
- * HQ-only, read-only shield audit trail — GET /hq/members/:id/shield-history
- * (repositories/streakShieldEvents.js). No write path exists here or on the
- * server for a normal staff account; the automatic earn/consume logic (see
- * streakEngine.js) is the only thing that touches shield state today.
+ * HQ-only, read-only shield audit trail — GET /hq/members/:id/shield-history.
+ * Rows are the audit record of the canonical replay (server
+ * lib/streakEngine.js); there is no edit path for staff. Rows the replay no
+ * longer derives are voided server-side (kept, not shown) and only counted
+ * in the footnote.
  */
 function ShieldHistoryPanel({ memberId }) {
   const [data, setData] = useState(null);
@@ -344,30 +345,52 @@ function ShieldHistoryPanel({ memberId }) {
 
   return (
     <div className="card p-4 space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h3 className="text-xs font-bold uppercase tracking-wide text-ink-muted">Shield history</h3>
         {data && <span className="text-sm font-bold text-navy">🛡️ {data.currentShields}/{data.maxShields}</span>}
       </div>
+      {data && data.progressToNextShield != null && (
+        <p className="text-[11px] text-ink-muted">
+          {data.progressToNextShield}/{data.shieldIntervalDays} required days toward the next shield
+        </p>
+      )}
       {error && <p className="text-xs text-danger">Couldn't load shield history.</p>}
       {!error && !data && <Skeleton height="60px" />}
       {!error && data && data.events.length === 0 && (
         <p className="text-xs text-ink-muted">No shield events recorded yet.</p>
       )}
       {!error && data && data.events.length > 0 && (
-        <div className="space-y-1 max-h-56 overflow-y-auto">
-          {data.events.map((e) => (
-            <div key={e.id} className="flex items-center justify-between text-xs py-1 border-b border-border/6 last:border-0">
-              <span className={`font-semibold ${SHIELD_EVENT_COLOR[e.eventType] || 'text-navy'}`}>
-                {SHIELD_EVENT_LABEL[e.eventType] || e.eventType} — {e.eventDate}
-              </span>
-              <span className="text-ink-muted truncate ml-2">
-                {e.eventType === 'consumed' && e.streakValue != null
-                  ? `Protected ${e.streakValue}-day streak`
-                  : e.reason || '—'}
-              </span>
-            </div>
-          ))}
+        <div className="overflow-x-auto max-h-64 overflow-y-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-border/8 text-ink-muted uppercase text-[10px]">
+                <th className="text-left p-1.5">Date</th>
+                <th className="text-left p-1.5">Event</th>
+                <th className="text-left p-1.5">Streak</th>
+                <th className="text-left p-1.5">Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.events.map((e) => (
+                <tr key={e.id} className="border-b border-border/6 last:border-0">
+                  <td className="p-1.5 whitespace-nowrap text-navy">{shortDateLabel(e.eventDate)}</td>
+                  <td className={`p-1.5 whitespace-nowrap font-semibold ${SHIELD_EVENT_COLOR[e.eventType] || 'text-navy'}`}>
+                    {SHIELD_EVENT_LABEL[e.eventType] || e.eventType}
+                  </td>
+                  <td className="p-1.5 whitespace-nowrap text-ink-secondary">
+                    {e.streakValue == null ? '—' : e.eventType === 'consumed' ? `Protected ${e.streakValue}` : e.streakValue}
+                  </td>
+                  <td className="p-1.5 text-ink-muted">{e.reason || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+      )}
+      {data && data.voidedCount > 0 && (
+        <p className="text-[10px] text-ink-muted">
+          {data.voidedCount} earlier record{data.voidedCount === 1 ? '' : 's'} voided by the 2026-10 streak/shield correction (kept for audit).
+        </p>
       )}
     </div>
   );
