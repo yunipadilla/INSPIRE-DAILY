@@ -12,6 +12,7 @@ const LABELS = {
   tasks: 'Tasks',
   reports: 'Reports',
   analytics: 'Analytics',
+  'tier-lab': 'Tier Lab',
   settings: 'Settings',
 };
 

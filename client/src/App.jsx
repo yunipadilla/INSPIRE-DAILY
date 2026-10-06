@@ -39,6 +39,8 @@ const HQTasks = lazy(() => import('./pages/hq/TasksHQ'));
 const HQReports = lazy(() => import('./pages/hq/Reports'));
 const HQAnalytics = lazy(() => import('./pages/hq/Analytics'));
 const HQSettings = lazy(() => import('./pages/hq/Settings'));
+const HQTierLab = lazy(() => import('./pages/hq/TierLab'));
+const HQTierLabMember = lazy(() => import('./pages/hq/TierLabMember'));
 
 function HQLoading() {
   return <div className="py-16 text-center text-ink-muted text-sm">Loading…</div>;
@@ -100,6 +102,8 @@ export default function App() {
             <Route path="tasks" element={<HQTasks />} />
             <Route path="reports" element={<HQReports />} />
             <Route path="analytics" element={<HQAnalytics />} />
+            <Route path="tier-lab" element={<HQTierLab />} />
+            <Route path="tier-lab/:id" element={<HQTierLabMember />} />
             <Route path="settings" element={<HQSettings />} />
           </Route>
         </Route>

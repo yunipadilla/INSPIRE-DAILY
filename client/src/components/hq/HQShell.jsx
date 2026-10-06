@@ -3,7 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, Users, GraduationCap, School, Award, Building2, FolderTree,
   BarChart3, Target, Trophy, HandHeart, ClipboardList,
-  FileText, LineChart, Settings, Menu, X,
+  FileText, LineChart, FlaskConical, Settings, Menu, X,
 } from 'lucide-react';
 import InspireLogo from '../InspireLogo';
 import ThemeToggle from '../ui/ThemeToggle';
@@ -45,6 +45,7 @@ const NAV_GROUPS = [
     items: [
       { to: '/hq/reports', label: 'Reports', icon: FileText },
       { to: '/hq/analytics', label: 'Analytics', icon: LineChart },
+      { to: '/hq/tier-lab', label: 'Tier Lab', icon: FlaskConical },
     ],
   },
   { title: 'System', items: [{ to: '/hq/settings', label: 'Settings', icon: Settings }] },

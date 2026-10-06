@@ -96,8 +96,12 @@ export async function getChallengeOverview({ days = 30, month } = {}) {
  * same month by construction — same per-user formula as
  * monthlySummerLeaderboard, just returned for every participant instead of
  * ranked/limited.
+ *
+ * `excludeSundays` (default false — existing callers unchanged) drops
+ * Sunday-dated REAL rows from the sum, for callers (Tier Lab) that treat
+ * Sunday as a non-required day. A checkpoint's aggregate is never altered.
  */
-export async function getMonthlyChallengeBreakdown(monthStart, monthEnd) {
+export async function getMonthlyChallengeBreakdown(monthStart, monthEnd, { excludeSundays = false } = {}) {
   const periodKey = monthStart.slice(0, 7);
   const { rows } = await query(
     `select u.id, u.first_name, u.last_name,
@@ -106,18 +110,20 @@ export async function getMonthlyChallengeBreakdown(monthStart, monthEnd) {
                where se.user_id = u.id
                  and se.date between $1 and $2
                  and se.date > coalesce(bc.checkpoint_date, '1899-12-31'::date)
+                 and ($4::boolean is false or extract(dow from se.date) <> 0)
             ), 0)::numeric as points,
             coalesce(bc.challenge_days_checkpoint, 0) + coalesce((
               select count(*) from summer_entries se2
                where se2.user_id = u.id
                  and se2.date between $1 and $2
                  and se2.date > coalesce(bc.checkpoint_date, '1899-12-31'::date)
+                 and ($4::boolean is false or extract(dow from se2.date) <> 0)
             ), 0)::int as days_logged
        from users u
        left join base44_checkpoints bc on bc.user_id = u.id and bc.challenge_period = $3
       where u.system_role = 'participant'
       order by points desc, u.first_name asc`,
-    [monthStart, monthEnd, periodKey]
+    [monthStart, monthEnd, periodKey, excludeSundays]
   );
   return rows.map((r) => ({
     userId: r.id,

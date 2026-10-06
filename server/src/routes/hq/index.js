@@ -11,6 +11,7 @@ import tasksRoutes from './tasks.js';
 import reportsRoutes from './reports.js';
 import analyticsRoutes from './analytics.js';
 import monthlySnapshotRoutes from './monthlySnapshot.js';
+import tierLabRoutes from './tierLab.js';
 
 const router = Router();
 
@@ -31,6 +32,8 @@ router.use('/tasks', tasksRoutes);
 router.use('/reports', reportsRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/monthly-snapshot', monthlySnapshotRoutes);
+// Pre-launch Tier Lab — staff-only shadow mode, no participant counterpart.
+router.use('/tier-lab', tierLabRoutes);
 // Mounted at the /api/hq root (not under /members or /overview): exposes
 // GET /api/hq/badge-catalog and POST /api/hq/members/:id/badges.
 router.use('/', badgesRoutes);
