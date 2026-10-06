@@ -11,6 +11,12 @@ export const env = {
   databaseUrl: required('DATABASE_URL'),
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '30d',
+  // Canonical public URL of this app — used for links in emails. Falls back to
+  // CLIENT_ORIGIN; see lib/appUrl.js for the production safety net.
+  appUrl: process.env.APP_URL || '',
+  // HTTPS email API (preferred: works on Render's free plan, which blocks
+  // outbound SMTP ports 25/465/587). SMTP below remains as a fallback.
+  resendApiKey: process.env.RESEND_API_KEY || '',
   smtp: {
     host: process.env.SMTP_HOST || '',
     port: Number(process.env.SMTP_PORT || 587),
@@ -41,6 +47,9 @@ if (!env.jwtSecret) {
   );
 }
 
-export const isEmailConfigured = () => Boolean(env.smtp.host && env.smtp.user && env.smtp.pass);
+export const isSmtpConfigured = () => Boolean(env.smtp.host && env.smtp.user && env.smtp.pass);
+export const isEmailConfigured = () => Boolean(env.resendApiKey) || isSmtpConfigured();
+/** 'resend' | 'smtp' | 'stub' — which transport sendEmail will use right now. */
+export const emailProvider = () => (env.resendApiKey ? 'resend' : isSmtpConfigured() ? 'smtp' : 'stub');
 export const isTwilioConfigured = () =>
   Boolean(env.twilio.accountSid && env.twilio.authToken && env.twilio.whatsappFrom);

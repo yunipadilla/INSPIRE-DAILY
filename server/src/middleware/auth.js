@@ -25,7 +25,11 @@ export async function requireAuth(req, res, next) {
     // valid — this is what makes "existing sessions are invalidated" true
     // for a password reset, on every device, without extra storage.
     if (user.password_changed_at) {
-      const changedAtMs = new Date(user.password_changed_at).getTime();
+      // JWT `iat` has whole-second precision, so compare at the same
+      // precision. Otherwise a login within the same second as a password
+      // reset (iat rounded DOWN) would look "older" than the reset and be
+      // rejected as an expired session.
+      const changedAtMs = Math.floor(new Date(user.password_changed_at).getTime() / 1000) * 1000;
       const tokenIssuedMs = payload.iat * 1000;
       if (tokenIssuedMs < changedAtMs) {
         return res.status(401).json({ error: 'Your session has expired. Please log in again.' });

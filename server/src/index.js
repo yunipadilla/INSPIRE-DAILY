@@ -15,6 +15,8 @@ import summerChallengeRoutes from './routes/summerChallenge.js';
 import internshipTasksRoutes from './routes/internshipTasks.js';
 import submissionWindowRoutes from './routes/submissionWindow.js';
 import hqRoutes from './routes/hq/index.js';
+import { emailProvider } from './config/env.js';
+import { appBaseUrl } from './lib/appUrl.js';
 import { scheduleDailyScoresAgent } from './agents/dailyScoresAgent.js';
 import { scheduleHomeAgent } from './agents/homeAgent.js';
 import { scheduleGoalsAgent } from './agents/goalsAgent.js';
@@ -67,6 +69,14 @@ app.use((err, req, res, next) => {
 
 app.listen(env.port, () => {
   console.log(`Inspire Daily API listening on port ${env.port}`);
+  const provider = emailProvider();
+  console.log(`[email] provider=${provider} links=${appBaseUrl()}`);
+  if (provider === 'stub' && process.env.NODE_ENV === 'production') {
+    console.error('[email] NO EMAIL PROVIDER CONFIGURED — password-reset emails will NOT be delivered. Set RESEND_API_KEY (and EMAIL_FROM).');
+  }
+  if (provider === 'smtp' && process.env.NODE_ENV === 'production') {
+    console.warn('[email] using SMTP — Render free plans block outbound ports 25/465/587; prefer RESEND_API_KEY.');
+  }
   if (env.databaseUrl) {
     scheduleDailyScoresAgent();
     scheduleHomeAgent();

@@ -16,3 +16,9 @@ services:
         value: 30d
       - key: CLIENT_ORIGIN
         value: https://inspire-daily.onrender.com
+      # Email delivery (password reset etc.). Secrets — set in the Render
+      # dashboard, never committed. See server/.env.example.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false

@@ -53,6 +53,10 @@ export default function ForgotPassword() {
           {result ? (
             <div className="space-y-5">
               <Alert variant="success">{result}</Alert>
+              <p className="text-sm text-ink-secondary">
+                The link works for 60 minutes. If you don't see the email in a few minutes, check your spam
+                folder, then wait a minute and try again.
+              </p>
               <Link
                 to="/login"
                 className="btn-bubble gradient-rainbow text-white w-full py-3 min-h-[44px] flex items-center justify-center"
@@ -89,7 +93,7 @@ export default function ForgotPassword() {
                   disabled={submitting}
                   className="btn-bubble gradient-rainbow text-white w-full py-3 min-h-[44px]"
                 >
-                  {submitting ? 'Sending…' : 'Send reset link'}
+                  {submitting ? 'Sending…' : 'Send Reset Link'}
                 </button>
               </div>
             </form>

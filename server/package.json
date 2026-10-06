@@ -7,7 +7,7 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "test": "node --test \"test/**/*.test.js\"",
-    "test:integration": "node --test test/integration/streakService.integration.mjs"
+    "test:integration": "node --test \"test/integration/*.integration.mjs\""
   },
   "keywords": [],
   "author": "",

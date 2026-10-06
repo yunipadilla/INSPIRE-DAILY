@@ -19,6 +19,9 @@ export default function ResetPassword() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  // Set when the server says this link is invalid/expired/already used —
+  // swaps the form for an explanation + a way to request a fresh link.
+  const [linkDead, setLinkDead] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -42,7 +45,8 @@ export default function ResetPassword() {
       await resetPassword(token, password);
       setDone(true);
     } catch (err) {
-      setError(err.data?.error || err.message);
+      if (err.data?.code === 'INVALID_RESET_TOKEN') setLinkDead(true);
+      else setError(err.data?.error || err.message);
     } finally {
       setSubmitting(false);
     }
@@ -64,12 +68,31 @@ export default function ResetPassword() {
           {done ? (
             <div className="space-y-5 text-center">
               <h1 className="bubble-heading text-2xl sm:text-3xl">Password updated!</h1>
-              <Alert variant="success">Your password has been reset. You can now log in.</Alert>
+              <Alert variant="success">
+                Password updated successfully. You can now sign in with your new password.
+              </Alert>
               <Link
                 to="/login"
                 className="btn-bubble gradient-rainbow text-white w-full py-3 min-h-[44px] flex items-center justify-center"
               >
-                Go to login
+                Go to sign in
+              </Link>
+            </div>
+          ) : linkDead ? (
+            <div className="space-y-5 text-center">
+              <h1 className="bubble-heading text-2xl sm:text-3xl">This link can't be used</h1>
+              <Alert variant="danger">
+                This reset link has expired or was already used. Reset links last 60 minutes and only work once,
+                and asking for a new link cancels the old one. Please request a new link.
+              </Alert>
+              <Link
+                to="/forgot-password"
+                className="btn-bubble gradient-rainbow text-white w-full py-3 min-h-[44px] flex items-center justify-center"
+              >
+                Request a new link
+              </Link>
+              <Link to="/login" className="block text-sm font-semibold text-link hover:opacity-80 transition-opacity">
+                Back to sign in
               </Link>
             </div>
           ) : !token ? (
@@ -124,7 +147,7 @@ export default function ResetPassword() {
                     disabled={submitting}
                     className="btn-bubble gradient-rainbow text-white w-full py-3 min-h-[44px]"
                   >
-                    {submitting ? 'Updating…' : 'Update password'}
+                    {submitting ? 'Updating…' : 'Update Password'}
                   </button>
                 </div>
               </form>
