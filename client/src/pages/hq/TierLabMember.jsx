@@ -10,18 +10,7 @@ import Alert from '../../components/ui/Alert';
 import TierChip from '../../components/hq/TierChip';
 import { pct, num, monthLabel } from '../../lib/tierFormat';
 
-const STATUS_TEXT = {
-  complete: 'Complete', partial: 'Partial history', insufficient_history: 'Insufficient historical detail',
-  not_eligible: 'Not yet eligible',
-};
-
-/** Which measures are left out of a month, in words. */
-function statusText(m) {
-  if (m.status === 'partial_history') {
-    return m.completionStatus === 'excluded' ? 'Completion: insufficient historical detail' : 'Challenge: insufficient historical detail';
-  }
-  return STATUS_TEXT[m.status];
-}
+const metricStatus = (st) => (st === 'complete' || st === 'partial' ? 'Verified' : st === 'excluded' ? 'Insufficient' : 'n/a');
 
 function currentMonthValue() {
   const d = new Date();
@@ -67,6 +56,12 @@ export default function TierLabMember() {
       <div className="card p-5 space-y-3">
         <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">Projected tier</p>
         <TierChip tier={r.projectedTier} status={r.status} size="lg" />
+        <p className="text-sm text-ink-secondary">
+          Projected tiers use only months where both completion and Challenge performance can be verified.
+        </p>
+        <p className="text-sm font-semibold text-navy">
+          Common Verified Months: {r.commonVerifiedMonths} of {r.windowMonthCount}
+        </p>
         {r.uncertain && (
           <p className="text-sm text-danger">
             Uncertain: if the unverifiable historical days were misses, this would be{' '}
@@ -79,10 +74,10 @@ export default function TierLabMember() {
         <DashboardCard label="Completion" value={pct(r.completionRate)} colorVar="--color-primary" hint={r.worstCase.completionRate != null && r.uncertain ? `worst case ${pct(r.worstCase.completionRate)}` : undefined} />
         <DashboardCard label="Challenge avg" value={num(r.challengeAverage)} colorVar="--color-blue" hint="points ÷ eligible days" />
         <DashboardCard label="Challenge points" value={num(r.challengePoints, 1)} colorVar="--color-yellow" />
-        <DashboardCard label="Usable months" value={r.usableMonths} colorVar="--color-lavender" />
+        <DashboardCard label="Common verified months" value={`${r.commonVerifiedMonths} of ${r.windowMonthCount}`} colorVar="--color-lavender" hint="both metrics verifiable" />
         <DashboardCard label="Completed entries" value={r.completedEntries} colorVar="--color-success" />
-        <DashboardCard label="Eligible days" value={r.eligibleDays} colorVar="--color-mint" hint="non-Sunday, verifiable (completion)" />
-        <DashboardCard label="Challenge days" value={r.challengeDays} colorVar="--color-blue" hint="denominator for the Challenge average" />
+        <DashboardCard label="Eligible days" value={r.eligibleDays} colorVar="--color-mint" hint="common verified months only" />
+        <DashboardCard label="Challenge days" value={r.challengeDays} colorVar="--color-blue" hint="common verified months only" />
         <DashboardCard label="Eligible since" value={p.eligibleStart} colorVar="--color-peach" />
         <DashboardCard label="Rules" value={r.ruleVersion.toUpperCase()} colorVar="--color-text-muted" hint={rules.label} />
       </div>
@@ -124,32 +119,34 @@ export default function TierLabMember() {
       <section className="space-y-2">
         <h2 className="text-sm font-bold text-navy uppercase tracking-wide">Month by month</h2>
         <div className="card overflow-x-auto">
-          <table className="w-full text-sm min-w-[820px]">
+          <table className="w-full text-sm min-w-[1100px]">
             <thead>
               <tr className="border-b border-border/8 text-left text-xs font-semibold uppercase tracking-wide text-ink-muted">
-                {['Month', 'Eligible days', 'Completed', 'Completion', 'Challenge pts', 'Challenge avg', 'Projected monthly tier', 'Data status'].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}
+                {['Month', 'Eligible days', 'Completed', 'Completion', 'Completion status', 'Challenge pts', 'Challenge avg', 'Challenge status', 'Tier calculation', 'Monthly tier'].map((h) => <th key={h} className="px-4 py-3">{h}</th>)}
               </tr>
             </thead>
             <tbody>
               {rowsShown.map((m) => (
-                <tr key={m.month} className="border-b border-border/6 last:border-0 text-navy">
+                <tr key={m.month} className={`border-b border-border/6 last:border-0 ${m.includedInTier ? 'text-navy' : 'text-ink-secondary'}`}>
                   <td className="px-4 py-3 font-semibold">{monthLabel(m.month)}{m.inProgress ? ' (in progress)' : ''}</td>
                   <td className="px-4 py-3">{m.eligibleDays}{m.unverifiableDays > 0 && <span className="text-xs text-ink-muted"> ({m.unverifiableDays} unverifiable)</span>}</td>
                   <td className="px-4 py-3">{m.completedEntries}</td>
                   <td className="px-4 py-3">{m.completionUsable ? pct(m.completionRate) : '—'}</td>
+                  <td className="px-4 py-3 text-xs font-semibold">{metricStatus(m.completionStatus)}</td>
                   <td className="px-4 py-3">{m.challengeUsable ? num(m.challengePoints, 1) : '—'}</td>
                   <td className="px-4 py-3">{m.challengeUsable ? num(m.challengeAverage) : '—'}{m.challengeUsable && m.challengeUnverifiableDays > 0 && <span className="text-xs text-ink-muted"> ({m.challengeUnverifiableDays} unverifiable)</span>}</td>
+                  <td className="px-4 py-3 text-xs font-semibold">{metricStatus(m.challengeStatus)}</td>
+                  <td className="px-4 py-3 text-xs">{m.includedInTier ? <span className="font-semibold text-navy">Included</span> : m.exclusionReason}</td>
                   <td className="px-4 py-3">{m.monthTierComputable ? <TierChip tier={m.projectedTier} label={m.projectedTier ? `Tier ${m.projectedTier}` : 'Building'} /> : '—'}</td>
-                  <td className="px-4 py-3 text-xs text-ink-secondary">{statusText(m)}</td>
                 </tr>
               ))}
-              {rowsShown.length === 0 && <tr><td className="px-4 py-6 text-ink-secondary" colSpan={8}>No eligible days in this window yet.</td></tr>}
+              {rowsShown.length === 0 && <tr><td className="px-4 py-6 text-ink-secondary" colSpan={10}>No eligible days in this window yet.</td></tr>}
             </tbody>
           </table>
         </div>
         <p className="text-xs text-ink-muted">
-          “Insufficient historical detail” = too many days in that month predate the live app and can't be verified from migrated records, so that
-          measure is left out for the month rather than guessed (completion and Challenge are judged separately). Combined figures sum the underlying days across usable months — they are not an average of monthly percentages.
+          “Insufficient” = too many days in that month predate the live app and can't be verified from migrated records (more than {Math.round(rules.maxUnverifiableShare * 100)}% of the month's eligible days).
+          Every month's figures stay visible, but only months where BOTH metrics are verifiable (“Included”) feed the projected tier. Combined figures sum the underlying days across usable months — they are not an average of monthly percentages.
         </p>
       </section>
 

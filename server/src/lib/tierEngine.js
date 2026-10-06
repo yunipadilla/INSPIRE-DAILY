@@ -26,9 +26,14 @@
  * cannot prove a miss, so such days are "unverifiable" and excluded from the
  * denominators (never counted as completed, never as missed). Each MEASURE
  * is judged separately per month: if too many of a month's days are
- * unverifiable for that measure, that measure is left out of the month
- * ("insufficient_history" when both are) — a checkpoint that covers the
- * Challenge days but not the Daily Score days still lets Challenge count.
+ * unverifiable for that measure, that measure is "insufficient" for the month.
+ *
+ * COMMON VERIFIED MONTHS: the projected tier is computed ONLY from months where
+ * BOTH completion and Challenge are verifiable for that same month — one
+ * shared month set feeds both six-month metrics, so the two are always over
+ * the same days and easy to explain. Every month's raw figures are still
+ * returned (and shown) with per-metric statuses; excluded months simply don't
+ * contribute to the tier.
  *
  * Six-month results use the underlying opportunities (sums), NOT an average
  * of monthly percentages, so months weigh by their real number of days.
@@ -150,7 +155,7 @@ export function evaluateParticipant({ rules, participant, months, evalEnd, chall
     const base = { month, inProgress: evalEnd < monthEnd };
     const days = spanStart <= spanEnd ? requiredDays(spanStart, spanEnd) : [];
     if (days.length === 0) {
-      return { ...base, status: 'not_eligible', completionStatus: 'n/a', challengeStatus: 'n/a', completionUsable: false, challengeUsable: false, eligibleDays: 0, completedEntries: 0, missedDays: 0, unverifiableDays: 0,
+      return { ...base, status: 'not_eligible', completionStatus: 'n/a', challengeStatus: 'n/a', includedInTier: false, exclusionReason: 'Not yet eligible', completionUsable: false, challengeUsable: false, eligibleDays: 0, completedEntries: 0, missedDays: 0, unverifiableDays: 0,
         completionDenominator: 0, completionRate: null, completionRateWorstCase: null, challengePoints: 0, challengeDays: 0,
         challengeDaysAll: 0, challengeUnverifiableDays: 0, challengeAverage: null, challengeAverageWorstCase: null,
         projectedTier: null, usable: false };
@@ -185,12 +190,21 @@ export function evaluateParticipant({ rules, participant, months, evalEnd, chall
       : completionStatus === 'excluded' || challengeStatus === 'excluded' ? 'partial_history'
       : completionStatus === 'partial' || challengeStatus === 'partial' ? 'partial' : 'complete';
 
+    // Tier inclusion: ONLY when both metrics are verifiable for this same month.
+    const includedInTier = completionUsable && challengeUsable && completionDenominator > 0 && challengeDenominator > 0;
+    const exclusionReason = includedInTier ? null
+      : cdays.length === 0 ? 'Excluded — Challenge had not started'
+      : !completionUsable && !challengeUsable ? 'Excluded — completion and Challenge not verifiable'
+      : !completionUsable ? 'Excluded — completion not verifiable'
+      : !challengeUsable ? 'Excluded — Challenge not verifiable'
+      : 'Excluded — no verifiable days';
+
     const completionRate = completionUsable && completionDenominator > 0 ? completedEntries / completionDenominator : null;
     const challengeAverage = challengeUsable && challengeDenominator > 0 ? challengePoints / challengeDenominator : null;
     const monthTier = classifyTier(rules, completionRate, challengeAverage);
 
     return {
-      ...base, status, completionStatus, challengeStatus,
+      ...base, status, completionStatus, challengeStatus, includedInTier, exclusionReason,
       usable: completionUsable || challengeUsable, completionUsable, challengeUsable,
       eligibleDays: days.length, completedEntries, missedDays: missed, unverifiableDays: unverifiable,
       completionDenominator, completionRate,
@@ -203,47 +217,44 @@ export function evaluateParticipant({ rules, participant, months, evalEnd, chall
     };
   });
 
-  // ── Combined window: sums of underlying opportunities, per measure, over the
-  // months where that measure is usable.
+  // ── Combined window: sums of the underlying days over COMMON VERIFIED MONTHS only
+  // (the same month set for both metrics).
   const sum = (arr, k) => arr.reduce((t, m) => t + m[k], 0);
-  const cMonths = monthlyBreakdown.filter((m) => m.completionUsable);
-  const hMonths = monthlyBreakdown.filter((m) => m.challengeUsable);
-  const completedEntries = sum(cMonths, 'completedEntries');
-  const eligibleDays = sum(cMonths, 'completionDenominator');
-  const challengePoints = sum(hMonths, 'challengePoints');
-  const challengeDays = sum(hMonths, 'challengeDays');
+  const common = monthlyBreakdown.filter((m) => m.includedInTier);
+  const completedEntries = sum(common, 'completedEntries');
+  const eligibleDays = sum(common, 'completionDenominator');
+  const challengePoints = sum(common, 'challengePoints');
+  const challengeDays = sum(common, 'challengeDays');
   const completionRate = eligibleDays > 0 ? completedEntries / eligibleDays : null;
   const challengeAverage = challengeDays > 0 ? challengePoints / challengeDays : null;
-  // Worst case: every unverifiable day treated as a miss / zero-point day.
-  const allDays = sum(cMonths, 'eligibleDays');
-  const allChallengeDays = sum(hMonths, 'challengeDaysAll');
+  // Worst case: every unverifiable day (inside the common months) treated as a miss / zero-point day.
+  const allDays = sum(common, 'eligibleDays');
+  const allChallengeDays = sum(common, 'challengeDaysAll');
   const worstCompletion = allDays > 0 ? completedEntries / allDays : null;
   const worstAverage = allChallengeDays > 0 ? challengePoints / allChallengeDays : null;
 
   const caveats = [];
-  const exclC = monthlyBreakdown.filter((m) => m.completionStatus === 'excluded').map((m) => m.month);
-  const exclH = monthlyBreakdown.filter((m) => m.challengeStatus === 'excluded').map((m) => m.month);
-  if (exclC.length) caveats.push(`Completion excludes ${exclC.length} month(s) with insufficient historical detail: ${exclC.join(', ')}.`);
-  if (exclH.length) caveats.push(`Challenge average excludes ${exclH.length} month(s) with insufficient historical detail: ${exclH.join(', ')}.`);
-  const partial = monthlyBreakdown.filter((m) => m.completionStatus === 'partial' || m.challengeStatus === 'partial');
+  const excludedMonths = monthlyBreakdown.filter((m) => !m.includedInTier && m.status !== 'not_eligible');
+  if (excludedMonths.length) {
+    caveats.push(`${excludedMonths.length} month(s) not used for the tier — completion and Challenge must both be verifiable: ${excludedMonths.map((m) => m.month).join(', ')}.`);
+  }
+  const partial = common.filter((m) => m.completionStatus === 'partial' || m.challengeStatus === 'partial');
   if (partial.length) {
     const n = sum(partial.filter((m) => m.completionStatus === 'partial'), 'unverifiableDays')
       + sum(partial.filter((m) => m.challengeStatus === 'partial'), 'challengeUnverifiableDays');
     caveats.push(`${n} unverifiable historical day(s) left out of the denominators in: ${partial.map((m) => m.month).join(', ')}.`);
   }
-  if (monthlyBreakdown.some((m) => m.inProgress && m.eligibleDays > 0)) caveats.push('Current month is in progress — only days whose submission window has closed are counted.');
+  if (common.some((m) => m.inProgress)) caveats.push('Current month is in progress — only days whose submission window has closed are counted.');
 
   let status = 'ok';
   let insufficientReason = null;
   if (!participant.hasAnyActivity) { status = 'insufficient'; insufficientReason = 'No Daily Score or Challenge activity recorded yet.'; }
-  else if (eligibleDays < rules.minEligibleDays) {
+  else if (common.length === 0) {
     status = 'insufficient';
-    insufficientReason = cMonths.length === 0
-      ? 'No month has enough verifiable historical detail to evaluate.'
-      : `Only ${eligibleDays} verifiable eligible day(s) of completion data; ${rules.minEligibleDays} needed.`;
-  } else if (challengeDays < rules.minEligibleDays) {
+    insufficientReason = 'No month has both completion and Challenge data that can be verified.';
+  } else if (eligibleDays < rules.minEligibleDays || challengeDays < rules.minEligibleDays) {
     status = 'insufficient';
-    insufficientReason = `Only ${challengeDays} verifiable eligible day(s) of Challenge data; ${rules.minEligibleDays} needed.`;
+    insufficientReason = `Only ${Math.min(eligibleDays, challengeDays)} common verified eligible day(s); ${rules.minEligibleDays} needed.`;
   }
 
   const verdict = status === 'ok' ? classifyTier(rules, completionRate, challengeAverage) : null;
@@ -253,8 +264,8 @@ export function evaluateParticipant({ rules, participant, months, evalEnd, chall
   const uncertain = Boolean(verdict && worstVerdict && worstVerdict.tier !== verdict.tier);
   const dataStatus = status === 'insufficient' ? 'insufficient' : caveats.some((c) => !c.startsWith('Current month')) ? 'partial' : 'complete';
 
-  // Trend: only when the last two usable months each have enough days to mean something.
-  const trendMonths = cMonths.filter((m) => m.completionDenominator >= rules.trend.minDays && m.completionRate != null).slice(-2);
+  // Trend: only when the last two common verified months each have enough days to mean something.
+  const trendMonths = common.filter((m) => m.completionDenominator >= rules.trend.minDays && m.completionRate != null).slice(-2);
   let completionTrend = null;
   if (trendMonths.length === 2) {
     const diff = trendMonths[1].completionRate - trendMonths[0].completionRate;
@@ -265,8 +276,7 @@ export function evaluateParticipant({ rules, participant, months, evalEnd, chall
     };
   }
 
-  const usedMonths = monthlyBreakdown.filter((m) => m.usable);
-  const evaluationStart = usedMonths.length ? (participant.eligibleStart > monthStartOf(usedMonths[0].month) ? participant.eligibleStart : monthStartOf(usedMonths[0].month)) : null;
+  const evaluationStart = common.length ? (participant.eligibleStart > monthStartOf(common[0].month) ? participant.eligibleStart : monthStartOf(common[0].month)) : null;
 
   return {
     ruleVersion: rules.version,
@@ -287,7 +297,9 @@ export function evaluateParticipant({ rules, participant, months, evalEnd, chall
       projectedTier: worstVerdict ? worstVerdict.tier : null,
     },
     uncertain,
-    usableMonths: cMonths.filter((m) => m.completionDenominator > 0).length,
+    commonVerifiedMonths: common.length,
+    windowMonthCount: months.length,
+    usableMonths: common.length, // kept for older callers: same number
     projectedTier,
     projectedLabel: projectedLabel(projectedTier, status),
     status,

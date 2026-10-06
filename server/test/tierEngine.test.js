@@ -216,24 +216,6 @@ test('14c. a Challenge checkpoint aggregate covers its days (not unverifiable); 
   assert.equal(m.challengeDays, m.eligibleDays);
 });
 
-test('14c2. usability is judged per measure: Daily Score history can be excluded while checkpoint-covered Challenge data still counts', () => {
-  const sept = days('2026-09-01', '2026-09-30');
-  const after = sept.filter((d) => d > '2026-09-15');
-  const r = evaluate({
-    start: '2026-09-01', months: ['2026-09'], evalEnd: '2026-09-30', done: after, rows: after, eraEnd: '2026-09-15',
-    cp: { period: '2026-09', checkpointDate: '2026-09-15' }, points: { '2026-09': 520 },
-  });
-  const m = r.monthlyBreakdown[0];
-  assert.equal(m.completionStatus, 'excluded');   // 11 of 26 days unverifiable
-  assert.equal(m.challengeStatus, 'complete');    // the aggregate covers Sep 1-15
-  assert.equal(m.status, 'partial_history');
-  assert.equal(m.completionRate, null);
-  assert.equal(m.challengeAverage, 520 / 26);
-  assert.equal(r.challengeAverage, 520 / 26);
-  assert.equal(r.completionRate, null);
-  assert.equal(r.status, 'insufficient');         // not enough verifiable completion days
-});
-
 test('14d. no Challenge denominator before the Challenge existed', () => {
   const may = days('2026-05-01', '2026-05-31');
   const r = evaluate({ start: '2026-05-01', months: ['2026-05'], evalEnd: '2026-05-31', done: may, chStart: '2026-06-03' });
@@ -242,6 +224,143 @@ test('14d. no Challenge denominator before the Challenge existed', () => {
 });
 
 // ── shields (item 15) ─────────────────────────────────────────────────────
+// ── common verified months (refinement) ───────────────────────────────────
+// Month builders: July 2026 has 27 required days.
+const JUL = days('2026-07-01', '2026-07-31');
+/** One month's evidence. `compOk`/`chOk` control whether that metric is verifiable:
+ *  - completion insufficient  => 14 of 27 days (>25%) have no record on/before the era end
+ *  - Challenge insufficient   => 14 of 27 days have no Challenge row on/before the era end */
+function julyCase({ compOk, chOk }) {
+  const unverifiable = JUL.slice(0, 14);
+  const done = compOk ? JUL : JUL.slice(14);              // missing 14 records => unverifiable (era end covers July)
+  const rows = chOk ? JUL : JUL.slice(14);
+  return evaluate({ start: '2026-07-01', months: ['2026-07'], evalEnd: '2026-07-31', done, rows, eraEnd: '2026-09-03', points: { '2026-07': 27 * 16 } });
+}
+
+test('C1. completion verified + Challenge verified => month INCLUDED in the tier', () => {
+  const r = julyCase({ compOk: true, chOk: true });
+  const m = r.monthlyBreakdown[0];
+  assert.equal(m.completionUsable && m.challengeUsable, true);
+  assert.equal(m.includedInTier, true);
+  assert.equal(m.exclusionReason, null);
+  assert.equal(r.commonVerifiedMonths, 1);
+  assert.equal(r.eligibleDays, 27);
+});
+
+test('C2. completion verified + Challenge insufficient => month EXCLUDED', () => {
+  const r = julyCase({ compOk: true, chOk: false });
+  const m = r.monthlyBreakdown[0];
+  assert.equal(m.completionStatus, 'complete');
+  assert.equal(m.challengeStatus, 'excluded');
+  assert.equal(m.includedInTier, false);
+  assert.equal(m.exclusionReason, 'Excluded — Challenge not verifiable');
+  assert.equal(r.commonVerifiedMonths, 0);
+  assert.equal(r.eligibleDays, 0);   // its verified completion days do NOT leak into the tier
+  assert.equal(r.status, 'insufficient');
+});
+
+test('C3. completion insufficient + Challenge verified => month EXCLUDED', () => {
+  const r = julyCase({ compOk: false, chOk: true });
+  const m = r.monthlyBreakdown[0];
+  assert.equal(m.completionStatus, 'excluded');
+  assert.equal(m.challengeStatus, 'complete');
+  assert.equal(m.includedInTier, false);
+  assert.equal(m.exclusionReason, 'Excluded — completion not verifiable');
+  assert.equal(r.challengeDays, 0);  // its verified Challenge days do NOT leak into the tier
+  assert.equal(r.challengeAverage, null);
+  assert.equal(r.status, 'insufficient');
+});
+
+test('C4. both insufficient => EXCLUDED', () => {
+  const m = julyCase({ compOk: false, chOk: false }).monthlyBreakdown[0];
+  assert.equal(m.includedInTier, false);
+  assert.equal(m.exclusionReason, 'Excluded — completion and Challenge not verifiable');
+  assert.equal(m.status, 'insufficient_history');
+});
+
+test('C5. the SAME common month set feeds both six-month metrics (and the worst case)', () => {
+  // Jun: both verifiable (included). Jul: completion verifiable, Challenge not (excluded).
+  // Aug: Challenge verifiable, completion not (excluded). Sep: both verifiable (included).
+  const jun = days('2026-06-01', '2026-06-30'); const aug = days('2026-08-01', '2026-08-31'); const sep = days('2026-09-01', '2026-09-30');
+  const done = [...jun, ...JUL, ...aug.slice(14), ...sep];
+  const rows = [...jun, ...JUL.slice(14), ...aug, ...sep];
+  const r = evaluate({
+    start: '2026-06-01', months: ['2026-06', '2026-07', '2026-08', '2026-09'], evalEnd: '2026-09-30', done, rows, eraEnd: '2026-09-03',
+    points: { '2026-06': 26 * 10, '2026-07': 27 * 20, '2026-08': 26 * 20, '2026-09': 26 * 10 },
+  });
+  const inc = r.monthlyBreakdown.filter((m) => m.includedInTier).map((m) => m.month);
+  assert.deepEqual(inc, ['2026-06', '2026-09']);
+  assert.equal(r.commonVerifiedMonths, 2);
+  assert.equal(r.eligibleDays, 52);   // Jun 26 + Sep 26
+  assert.equal(r.challengeDays, 52);  // the very same 52 days
+  assert.equal(r.completedEntries, 52);
+  assert.equal(r.completionRate, 1);
+  assert.equal(r.challengePoints, 520);
+  assert.equal(r.challengeAverage, 10);     // Jul/Aug's 20-pt months are NOT mixed in
+  assert.equal(r.windowMonthCount, 4);
+});
+
+test('C6. never-active accounts are Insufficient Data (not Building Toward Tier 3)', () => {
+  const r = evaluateParticipant({
+    rules: RULES, participant: { id: 'x', eligibleStart: '2026-07-01', historicalEraEnd: null, hasAnyActivity: false, completedDates: new Set(), challengeRowDates: new Set(), challengeCheckpoint: null },
+    months: ['2026-07', '2026-08'], evalEnd: '2026-08-31', challengeProgramStart: CH_START, challengePointsByMonth: {},
+  });
+  assert.equal(r.status, 'insufficient');
+  assert.equal(r.projectedLabel, 'Insufficient Data');
+  assert.notEqual(r.projectedLabel, 'Building Toward Tier 3');
+});
+
+test('C7. Building Toward Tier 3 requires enough common verified data to evaluate', () => {
+  // Enough data (27 common days), below Tier 3 -> Building.
+  const enough = evaluate({ start: '2026-07-01', months: ['2026-07'], evalEnd: '2026-07-31', done: JUL.slice(0, 5), points: { '2026-07': 10 } });
+  assert.equal(enough.status, 'ok');
+  assert.equal(enough.projectedLabel, 'Building Toward Tier 3');
+  // Fewer than 14 common verified days -> Insufficient, even though the numbers would "fail" Tier 3.
+  const few = evaluate({ start: '2026-07-20', months: ['2026-07'], evalEnd: '2026-07-31', done: [], rows: [], points: {} });
+  assert.ok(few.eligibleDays < 14);
+  assert.equal(few.status, 'insufficient');
+  assert.notEqual(few.projectedLabel, 'Building Toward Tier 3');
+  // Months that aren't common-verified don't count toward the 14-day floor.
+  const mixed = julyCase({ compOk: true, chOk: false });
+  assert.equal(mixed.status, 'insufficient');
+  assert.notEqual(mixed.projectedLabel, 'Building Toward Tier 3');
+});
+
+test('C8. thresholds and unverifiable-share rule are unchanged (Draft V1) and live in versioned config', () => {
+  assert.deepEqual(RULES.tiers.map((t) => [t.tier, t.minCompletion, t.minChallengeAvg]), [[1, 0.9, 15], [2, 0.6, 11], [3, 0.3, 8]]);
+  assert.equal(RULES.minEligibleDays, 14);
+  assert.equal(RULES.maxUnverifiableShare, 0.25);
+  assert.equal(RULES.version, 'v1');
+  // exactly at the share limit is still verifiable; just over is not
+  const atLimit = days('2026-07-01', '2026-07-31'); // 27 days; 25% of 27 = 6.75 -> 6 unverifiable ok, 7 not
+  const mk = (missing) => evaluate({ start: '2026-07-01', months: ['2026-07'], evalEnd: '2026-07-31', done: atLimit.slice(missing), eraEnd: '2026-09-03' }).monthlyBreakdown[0];
+  assert.equal(mk(6).completionUsable, true);
+  assert.equal(mk(7).completionUsable, false);
+});
+
+test('C9. participant visibility stays OFF and no participant-facing code references Tier Lab', async () => {
+  const { TIER_LAB_META } = await import('../src/config/tierRules.js');
+  assert.equal(RULES.participantVisible, false);
+  assert.equal(RULES.effectiveForOfficialAwards, false);
+  assert.equal(TIER_LAB_META.participantVisibility, false);
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const root = path.resolve(import.meta.dirname, '../..');
+  const scan = (dir, skip = () => false) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) return skip(full) ? [] : scan(full, skip);
+    return /\.(js|jsx|mjs)$/.test(e.name) ? [full] : [];
+  });
+  const participantFiles = [
+    ...scan(path.join(root, 'client/src/pages/app')),
+    ...scan(path.join(root, 'client/src/components'), (d) => d.endsWith(`${path.sep}hq`)),
+    ...scan(path.join(root, 'server/src/routes'), (d) => d.endsWith(`${path.sep}hq`)),
+  ].filter((f) => !f.endsWith(`${path.sep}hq${path.sep}index.js`));
+  assert.ok(participantFiles.length > 20, `scan covered ${participantFiles.length} participant-facing files`);
+  const offenders = participantFiles.filter((f) => /tierRules|tierEngine|tierLab|TierLab|tier-lab/.test(fs.readFileSync(f, 'utf8')));
+  assert.deepEqual(offenders, [], 'no participant-facing file may reference Tier Lab');
+});
+
 test('15. a shield-protected missed day is still a missed entry (shields are not an input)', () => {
   const july = days('2026-07-01', '2026-07-31');
   const missing = '2026-07-15';

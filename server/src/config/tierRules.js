@@ -35,12 +35,14 @@ export const TIER_RULE_SETS = deepFreeze({
     // result is "Insufficient Data" instead of a tier — a handful of days
     // can't show sustained behavior.
     minEligibleDays: 14,
-    // A month where more than this share of eligible days can't be verified
-    // from the historical data is excluded ("Insufficient historical detail")
-    // rather than guessed at. Months at/below it are kept, with the
-    // unverifiable days left out of the denominators and flagged — and every
-    // result also carries a WORST-CASE figure (those days counted as misses)
-    // so staff can see whether the tier could change.
+    // If more than this share of a month's eligible days can't be verified from
+    // the historical data for EITHER metric (completion or Challenge), that
+    // month is left out of the COMMON VERIFIED MONTHS — the only months that
+    // feed the projected tier, for both metrics alike. Months at/below the
+    // share are kept, with the unverifiable days left out of the denominators
+    // and flagged, and every result also carries a WORST-CASE figure (those
+    // days counted as misses) so staff can see whether the tier could change.
+    // Tunable here during Tier Lab testing; do not hardcode elsewhere.
     maxUnverifiableShare: 0.25,
     // Completion-trend display: only compare two months that each have at least
     // `minDays` verifiable days, and call a change real at +/- `delta` (5 points).

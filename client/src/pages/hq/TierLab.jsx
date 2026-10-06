@@ -175,7 +175,7 @@ export default function TierLab() {
     { key: 'pts', label: 'Challenge pts', render: (r) => num(r.challengePoints, 1) },
     { key: 'days', label: 'Eligible days', render: (r) => (r.challengeDays !== r.eligibleDays ? `${r.eligibleDays} (Challenge ${r.challengeDays})` : r.eligibleDays) },
     { key: 'done', label: 'Completed', render: (r) => r.completedEntries },
-    { key: 'months', label: 'Usable months', render: (r) => r.usableMonths },
+    { key: 'months', label: 'Common verified months', render: (r) => `${r.commonVerifiedMonths} of ${r.windowMonthCount}` },
     {
       key: 'status', label: 'Trend / data',
       render: (r) => (
@@ -212,6 +212,9 @@ export default function TierLab() {
           </span>
         </div>
         <Distribution dist={data.distribution} />
+        <p className="text-xs text-ink-muted mt-2">
+          Projected tiers use only months where both completion and Challenge performance can be verified.
+        </p>
       </div>
 
       <Simulator rules={data.rules} month={month} />

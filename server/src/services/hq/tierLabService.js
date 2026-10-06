@@ -131,6 +131,7 @@ const summaryRow = ({ participant: p, result: r }) => ({
   projectedTier: r.projectedTier, projectedLabel: r.projectedLabel, status: r.status,
   completionRate: r.completionRate, challengeAverage: r.challengeAverage, challengePoints: r.challengePoints,
   eligibleDays: r.eligibleDays, challengeDays: r.challengeDays, completedEntries: r.completedEntries, usableMonths: r.usableMonths,
+  commonVerifiedMonths: r.commonVerifiedMonths, windowMonthCount: r.windowMonthCount,
   worstCase: r.worstCase, uncertain: r.uncertain,
   dataStatus: r.dataStatus, caveats: r.caveats, insufficientReason: r.insufficientReason,
   completionTrend: r.completionTrend, evaluationStart: r.evaluationStart, evaluationEnd: r.evaluationEnd,
