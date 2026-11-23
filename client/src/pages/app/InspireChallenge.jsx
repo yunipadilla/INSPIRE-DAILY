@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
-import { calculateSummerPoints, projectWorkPoints } from '../../lib/summerChallengePoints';
+import { calculateSummerPoints, projectWorkPoints, readingMaxPointsFor, readingMaxSessionsFor, readingPoints } from '../../lib/summerChallengePoints';
 import { useAuth } from '../../context/AuthContext';
 import { formatDateLabel, formatFullDateLabel } from '../../lib/pacificTime';
 import TileButton from '../../components/TileButton';
 import SessionSelector from '../../components/SessionSelector';
 import CircleCheck from '../../components/CircleCheck';
 import SectionHeader from '../../components/SectionHeader';
+
+/** 1 → "1", 1.5 → "1.5" (never "1.0"). */
+const formatPoints = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 const SCREEN_TIME_OPTIONS = [
   { tier: 1, label: '≤ 1 hour', sublabel: '3 pts' },
@@ -206,7 +209,14 @@ export default function InspireChallenge() {
     update('projectMinutes', totalMinutes);
   }
 
-  const livePoints = calculateSummerPoints(entry);
+  // Which day's rules apply to the form (Reading's daily cap depends on the date).
+  const formDate = selected === 'yesterday' && data?.yesterday?.eligible ? data.yesterday.date : data?.today?.date;
+  const readingMaxSessions = readingMaxSessionsFor(formDate);
+  // Switching between today and yesterday can change the cap — never show or send more sessions than it allows.
+  const readingSessionsShown = Math.min(entry.readingSessions, readingMaxSessions);
+  const scoredEntry = { ...entry, readingSessions: readingSessionsShown };
+  const livePoints = calculateSummerPoints(scoredEntry, formDate);
+  const readingPointsEarned = readingPoints(readingSessionsShown, formDate);
   const projectWorkPointsEarned = projectWorkPoints(entry.projectMinutes);
 
   if (!data) return <div className="py-10 text-center text-ink-secondary">Loading…</div>;
@@ -291,7 +301,7 @@ export default function InspireChallenge() {
     setSubmitting(true);
     setError('');
     try {
-      const submitted = await apiFetch('/summer-challenge', { method: 'POST', body: { ...entry, date: activeDate } });
+      const submitted = await apiFetch('/summer-challenge', { method: 'POST', body: { ...scoredEntry, date: activeDate } });
       setResult(submitted);
     } catch (err) {
       setError(err.data?.error || err.message);
@@ -406,10 +416,11 @@ export default function InspireChallenge() {
         </div>
       </CategoryCard>
 
-      <CategoryCard title="Reading" points="1 pt per 30 min" subtitle="How many 30-minute reading sessions today?">
+      <CategoryCard title="Reading" points={`up to ${formatPoints(readingMaxPointsFor(formDate))} pts`} subtitle={`1 pt per 30-minute session · Max ${formatPoints(readingMaxPointsFor(formDate))} pts per day`}>
         <div className="flex items-center gap-3">
-          <SessionSelector max={4} value={entry.readingSessions} onChange={(v) => update('readingSessions', v)} />
+          <SessionSelector max={readingMaxSessions} value={readingSessionsShown} onChange={(v) => update('readingSessions', v)} />
           <span className="text-sm text-ink-secondary">× 30 min</span>
+          <span className="text-sm font-semibold text-navy">{readingPointsEarned > 0 ? `+${formatPoints(readingPointsEarned)} pt${readingPointsEarned === 1 ? '' : 's'}` : '0 pts'}</span>
         </div>
       </CategoryCard>
 

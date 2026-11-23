@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { currentMonthBoundsPT, isFridayPT } from '../config/pacificTime.js';
 import { requireAuth } from '../middleware/auth.js';
 import { SUMMER_CHALLENGE_LAUNCH_DATE } from '../config/constants.js';
-import { calculateSummerPoints } from '../lib/summerChallenge.js';
+import { calculateSummerPoints, buildSummerEntryValues } from '../lib/summerChallenge.js';
 import { getSubmissionWindow, isEligibleSubmissionDate, eligibilityMessageFor } from '../lib/submissionWindow.js';
 import { findByUserAndDate, insertSummerEntry, monthlySummerLeaderboard } from '../repositories/summerEntries.js';
 import { findAcknowledgement, acknowledgeRestDay } from '../repositories/restDayAcknowledgements.js';
@@ -28,10 +28,6 @@ function toClientEntry(e) {
     totalPoints: Number(e.total_points),
   };
 }
-
-// A submission can't claim more project time than exists in a day — a
-// generous but real ceiling (16h), not a rubber-stamped arbitrary number.
-const MAX_PROJECT_MINUTES = 960;
 
 /**
  * Same canonical window as Daily Scores (server/src/lib/submissionWindow.js)
@@ -155,25 +151,21 @@ router.post('/', async (req, res) => {
     return res.status(409).json({ error: 'You have already submitted your Inspire Challenge points for that date.' });
   }
 
-  const values = {
-    sleepBedBefore10: Boolean(req.body.sleepBedBefore10),
-    sleep8h: Boolean(req.body.sleep8h),
-    hydration: Boolean(req.body.hydration),
-    exercise: Boolean(req.body.exercise),
-    screenTimeTier: [1, 2, 3, 4].includes(Number(req.body.screenTimeTier)) ? Number(req.body.screenTimeTier) : null,
-    mindfulnessSessions: Math.max(0, Math.min(3, Number(req.body.mindfulnessSessions) || 0)),
-    readingSessions: Math.max(0, Math.min(4, Number(req.body.readingSessions) || 0)),
-    dailyUpdateSent: Boolean(req.body.dailyUpdateSent),
-    nutrition: Boolean(req.body.nutrition),
-    coldPlungeType: ['plunge', 'shower', 'none'].includes(req.body.coldPlungeType) ? req.body.coldPlungeType : null,
-    // Project/Volunteer Work: 1 pt per complete 30 min, computed server-side
-    // only (calculateSummerPoints) — a client-submitted minute count is
-    // just a duration claim, never a point value to trust directly.
-    projectMinutes: Math.max(0, Math.min(MAX_PROJECT_MINUTES, Math.round(Number(req.body.projectMinutes)) || 0)),
-  };
+  const values = buildSummerEntryValues(req.body, targetDate);
 
-  const totalPoints = calculateSummerPoints(values);
-  const record = await insertSummerEntry(req.user.id, targetDate, values, totalPoints);
+  const totalPoints = calculateSummerPoints(values, targetDate);
+  let record;
+  try {
+    record = await insertSummerEntry(req.user.id, targetDate, values, totalPoints);
+  } catch (err) {
+    // Two simultaneous submissions for the same day: the database's
+    // UNIQUE (user_id, date) lets exactly one win. The loser is a duplicate,
+    // not a server error — and can never add a second day's points.
+    if (err?.code === '23505') {
+      return res.status(409).json({ error: 'You have already submitted your Inspire Challenge points for that date.' });
+    }
+    throw err;
+  }
 
   res.status(201).json({ date: targetDate, totalPoints: Number(record.total_points) });
 });

@@ -189,7 +189,7 @@ export async function getMemberChallengeCategoryBreakdown(userId, monthParam) {
       coldPlungeType: r.cold_plunge_type,
       projectMinutes: r.project_minutes,
     };
-    const { categories, total: computedTotal } = calculateSummerPointsBreakdown(entry);
+    const { categories, total: computedTotal } = calculateSummerPointsBreakdown(entry, r.date);
     const storedTotal = Number(r.total_points);
     return {
       date: r.date,

@@ -161,7 +161,7 @@ async function reportMatchedUser(email, base44, currentUserRow, dsGroups, seGrou
     const row = pickRecommendedWinner(rows);
     base44PointsTotal += toNumOrNull(row.total_points) || 0;
     const { mapped, unmapped } = mapSummerEntryClean(row);
-    projectedPointsTotal += calculateSummerPoints(mapped);
+    projectedPointsTotal += calculateSummerPoints(mapped, date);
     unmapped.forEach((u) => unmappedFieldNotes.add(u));
   }
 

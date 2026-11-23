@@ -309,7 +309,7 @@ async function buildSummerEntryPlan(email, base44, currentUserRow) {
     // only disagreement is Base44's own untrusted total_points).
     const row = pickRecommendedWinner(group);
     const { mapped } = mapSummerEntryClean(row);
-    const points = calculateSummerPoints(mapped);
+    const points = calculateSummerPoints(mapped, date);
     eligible.push({ date, row, mapped, points, base44Points: toNumOrNull(row.total_points) || 0 });
   }
 
