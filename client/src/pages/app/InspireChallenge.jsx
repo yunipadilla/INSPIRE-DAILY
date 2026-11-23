@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/api';
-import { calculateSummerPoints, projectWorkPoints, readingMaxPointsFor, readingMaxSessionsFor, readingPoints } from '../../lib/summerChallengePoints';
+import { calculateSummerPoints, projectWorkPoints, isLegacyReadingDate, readingMaxSessionsFor, readingPoints, READING_MAX_POINTS, LEGACY_READING_MAX_POINTS, READING_CAP_EFFECTIVE_DATE } from '../../lib/summerChallengePoints';
 import { useAuth } from '../../context/AuthContext';
 import { formatDateLabel, formatFullDateLabel } from '../../lib/pacificTime';
 import TileButton from '../../components/TileButton';
@@ -211,6 +211,7 @@ export default function InspireChallenge() {
 
   // Which day's rules apply to the form (Reading's daily cap depends on the date).
   const formDate = selected === 'yesterday' && data?.yesterday?.eligible ? data.yesterday.date : data?.today?.date;
+  const legacyReading = isLegacyReadingDate(formDate);
   const readingMaxSessions = readingMaxSessionsFor(formDate);
   // Switching between today and yesterday can change the cap — never show or send more sessions than it allows.
   const readingSessionsShown = Math.min(entry.readingSessions, readingMaxSessions);
@@ -416,11 +417,25 @@ export default function InspireChallenge() {
         </div>
       </CategoryCard>
 
-      <CategoryCard title="Reading" points={`up to ${formatPoints(readingMaxPointsFor(formDate))} pts`} subtitle={`1 pt per 30-minute session · Max ${formatPoints(readingMaxPointsFor(formDate))} pts per day`}>
+      <CategoryCard
+        title="Reading"
+        points={`${formatPoints(READING_MAX_POINTS)} pts max`}
+        subtitle={`1 pt per 30-minute session · Max ${formatPoints(READING_MAX_POINTS)} pts per day for entries dated ${formatDateLabel(READING_CAP_EFFECTIVE_DATE)} or later`}
+      >
+        {legacyReading && (
+          <p className="mb-3 rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs text-navy">
+            <span className="font-bold">Today&apos;s legacy scoring:</span> the {formatPoints(READING_MAX_POINTS)}-point max starts with entries dated{' '}
+            {formatDateLabel(READING_CAP_EFFECTIVE_DATE)}. This entry is for {formatDateLabel(formDate)}, so it is still scored under the original
+            Reading rule: 1 pt per 30 minutes, up to {formatPoints(LEGACY_READING_MAX_POINTS)} pts.
+          </p>
+        )}
         <div className="flex items-center gap-3">
           <SessionSelector max={readingMaxSessions} value={readingSessionsShown} onChange={(v) => update('readingSessions', v)} />
           <span className="text-sm text-ink-secondary">× 30 min</span>
-          <span className="text-sm font-semibold text-navy">{readingPointsEarned > 0 ? `+${formatPoints(readingPointsEarned)} pt${readingPointsEarned === 1 ? '' : 's'}` : '0 pts'}</span>
+          <span className="text-sm font-semibold text-navy">
+            {readingPointsEarned > 0 ? `+${formatPoints(readingPointsEarned)} pt${readingPointsEarned === 1 ? '' : 's'}` : '0 pts'}
+            {legacyReading && readingPointsEarned > 0 ? ' (legacy)' : ''}
+          </span>
         </div>
       </CategoryCard>
 

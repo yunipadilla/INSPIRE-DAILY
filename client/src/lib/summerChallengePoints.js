@@ -13,6 +13,12 @@ export const READING_MAX_POINTS = 1.5;
 export const LEGACY_READING_MAX_POINTS = 4;
 export const READING_CAP_EFFECTIVE_DATE = '2026-11-24';
 
+/** True when `date` (the day being submitted) is scored under the ORIGINAL
+ * Reading rule (up to 4 points) rather than the 1.5-point cap. */
+export function isLegacyReadingDate(date) {
+  return Boolean(date) && date < READING_CAP_EFFECTIVE_DATE;
+}
+
 export function readingMaxPointsFor(date) {
   // No date yet (page still loading) → show the current cap.
   return !date || date >= READING_CAP_EFFECTIVE_DATE ? READING_MAX_POINTS : LEGACY_READING_MAX_POINTS;
